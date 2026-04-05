@@ -1,0 +1,293 @@
+/* style.css - 完整样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Noto Sans', sans-serif;
+    background: #f5f7fb;
+    height: 100vh;
+    overflow: hidden;
+    transition: background 0.2s ease;
+}
+
+body.dark {
+    background: #1a1e2a;
+    color: #e2e8f0;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+}
+
+.toolbar {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    padding: 12px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    z-index: 20;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+body.dark .toolbar {
+    background: rgba(30, 34, 48, 0.9);
+    border-bottom-color: rgba(255,255,255,0.08);
+}
+.logo {
+    font-weight: 600;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-right: 8px;
+}
+.btn-icon {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 40px;
+    transition: 0.2s;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+body.dark .btn-icon {
+    color: #cbd5e1;
+}
+.btn-icon:hover {
+    background: rgba(0,0,0,0.05);
+}
+body.dark .btn-icon:hover {
+    background: rgba(255,255,255,0.1);
+}
+.file-label {
+    background: #3b82f6;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 32px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.file-label:hover {
+    background: #2563eb;
+}
+.url-input {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    gap: 8px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 48px;
+    padding: 4px 12px;
+    align-items: center;
+}
+body.dark .url-input {
+    background: rgba(255,255,255,0.08);
+}
+.url-input input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 8px 0;
+    font-size: 0.85rem;
+    outline: none;
+    color: inherit;
+}
+.url-input button {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-weight: 500;
+}
+.ctrl-group {
+    display: flex;
+    gap: 4px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 40px;
+    padding: 2px;
+}
+body.dark .ctrl-group {
+    background: rgba(255,255,255,0.08);
+}
+
+.main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+.sidebar {
+    width: 280px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(8px);
+    border-right: 1px solid rgba(0,0,0,0.06);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+    z-index: 15;
+    flex-shrink: 0;
+}
+body.dark .sidebar {
+    background: rgba(30, 34, 48, 0.94);
+    border-right-color: rgba(255,255,255,0.05);
+}
+.sidebar.hide {
+    transform: translateX(-100%);
+    position: absolute;
+    height: 100%;
+}
+.sidebar-header {
+    padding: 20px 16px 12px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.toc-list {
+    list-style: none;
+    padding: 8px 0 20px;
+}
+.toc-item {
+    padding: 8px 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: 0.1s;
+    border-left: 3px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.toc-item:hover {
+    background: rgba(59,130,246,0.1);
+    border-left-color: #3b82f6;
+}
+.toc-item.active {
+    background: rgba(59,130,246,0.15);
+    border-left-color: #3b82f6;
+    font-weight: 500;
+}
+.reader-container {
+    flex: 1;
+    overflow-y: auto;
+    background: #fefefe;
+    transition: background 0.2s;
+    position: relative;
+    padding: 20px 24px;
+}
+body.dark .reader-container {
+    background: #11131f;
+}
+.reader-area-inner {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+#epubView {
+    width: 100%;
+    background: inherit;
+}
+.pdf-viewer {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+.pdf-page-canvas {
+    display: block;
+    margin: 0 auto 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    background: white;
+    width: 100%;
+    height: auto;
+}
+.txt-viewer {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.chapter-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(12px);
+    border-radius: 48px;
+    padding: 8px 20px;
+    display: flex;
+    gap: 24px;
+    z-index: 30;
+    color: white;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.2);
+    pointer-events: auto;
+}
+.chapter-nav button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 24px;
+    transition: 0.2s;
+}
+.chapter-nav button:hover {
+    background: rgba(255,255,255,0.2);
+}
+.loading-overlay {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 40px;
+    font-size: 0.85rem;
+    z-index: 100;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+}
+.empty-state {
+    text-align: center;
+    margin-top: 20vh;
+    color: #888;
+}
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+@media (max-width: 680px) {
+    .sidebar { width: 260px; }
+    .toolbar { padding: 8px 12px; gap: 8px; }
+    .btn-icon span { display: none; }
+    .btn-icon i { margin: 0; }
+    .file-label span { display: none; }
+    .file-label i { margin: 0; font-size: 1.2rem; }
+    .url-input { min-width: 140px; }
+    .chapter-nav { gap: 12px; padding: 6px 16px; font-size: 0.8rem; }
+}
+.smart-chapter-active {
+    background: #3b82f6;
+    color: white !important;
+}
