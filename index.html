@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title> ZZX · 电子书阅读器</title>
+    <!-- 字体与图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Epub.js 核心库 (稳定版) -->
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+    <!-- PDF.js 核心库 (渲染PDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- 设置 PDF.js worker (必须) -->
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Noto Sans', sans-serif;
+            background: #f5f7fb;
+            height: 100vh;
+            overflow: hidden;
+            transition: background 0.2s ease;
+        }
+
+        /* 深色模式变量 */
+        body.dark {
+            background: #1a1e2a;
+            color: #e2e8f0;
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* 顶部工具栏 */
+        .toolbar {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            z-index: 20;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        body.dark .toolbar {
+            background: rgba(30, 34, 48, 0.9);
+            border-bottom-color: rgba(255,255,255,0.08);
+        }
+        .logo {
+            font-weight: 600;
+            font-size: 1.2rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-right: 8px;
+        }
+        .btn-icon {
+            background: transparent;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 40px;
+            transition: 0.2s;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+        body.dark .btn-icon {
+            color: #cbd5e1;
+        }
+        .btn-icon:hover {
+            background: rgba(0,0,0,0.05);
+        }
+        body.dark .btn-icon:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .file-label {
+            background: #3b82f6;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 32px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .file-label:hover {
+            background: #2563eb;
+        }
+        .url-input {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            gap: 8px;
+            background: rgba(0,0,0,0.04);
+            border-radius: 48px;
+            padding: 4px 12px;
+            align-items: center;
+        }
+        body.dark .url-input {
+            background: rgba(255,255,255,0.08);
+        }
+        .url-input input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 8px 0;
+            font-size: 0.85rem;
+            outline: none;
+            color: inherit;
+        }
+        .url-input button {
+            background: none;
+            border: none;
+            color: #3b82f6;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .ctrl-group {
+            display: flex;
+            gap: 4px;
+            background: rgba(0,0,0,0.04);
+            border-radius: 40px;
+            padding: 2px;
+        }
+        body.dark .ctrl-group {
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* 主容器: 侧边栏 + 阅读区 */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        /* 侧边目录 */
+        .sidebar {
+            width: 280px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(8px);
+            border-right: 1px solid rgba(0,0,0,0.06);
+            transition: transform 0.25s ease;
+            overflow-y: auto;
+            z-index: 15;
+            flex-shrink: 0;
+        }
+        body.dark .sidebar {
+            background: rgba(30, 34, 48, 0.94);
+            border-right-color: rgba(255,255,255,0.05);
+        }
+        .sidebar.hide {
+            transform: translateX(-100%);
+            position: absolute;
+            height: 100%;
+        }
+        .sidebar-header {
+            padding: 20px 16px 12px;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .toc-list {
+            list-style: none;
+            padding: 8px 0 20px;
+        }
+        .toc-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.1s;
+            border-left: 3px solid transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .toc-item:hover {
+            background: rgba(59,130,246,0.1);
+            border-left-color: #3b82f6;
+        }
+        .toc-item.active {
+            background: rgba(59,130,246,0.15);
+            border-left-color: #3b82f6;
+            font-weight: 500;
+        }
+        /* 阅读区域容器 */
+        .reader-container {
+            flex: 1;
+            overflow-y: auto;
+            background: #fefefe;
+            transition: background 0.2s;
+            position: relative;
+            padding: 20px 24px;
+        }
+        body.dark .reader-container {
+            background: #11131f;
+        }
+        /* EPUB渲染容器 */
+        #epubView {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            background: inherit;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+            border-radius: 8px;
+        }
+        /* PDF视图容器 (canvas列表) */
+        .pdf-viewer {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .pdf-page-canvas {
+            display: block;
+            margin: 0 auto 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            background: white;
+            width: 100%;
+            height: auto;
+        }
+        .txt-viewer {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 1.1rem;
+            line-height: 1.7;
+            max-width: 800px;
+            margin: 0 auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .loading-overlay {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            z-index: 100;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+        }
+        .empty-state {
+            text-align: center;
+            margin-top: 20vh;
+            color: #888;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        /* 响应式 */
+        @media (max-width: 680px) {
+            .sidebar { width: 260px; }
+            .toolbar { padding: 8px 12px; gap: 8px; }
+            .btn-icon span { display: none; }
+            .btn-icon i { margin: 0; }
+            .file-label span { display: none; }
+            .file-label i { margin: 0; font-size: 1.2rem; }
+            .url-input { min-width: 140px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="toolbar">
+        <div class="logo"><i class="fas fa-book-open"></i> Zero. Zip. Xplore. · 阅读</div>
+        <label class="file-label">
+            <i class="fas fa-upload"></i><span> 上传图书</span>
+            <input type="file" id="fileInput" accept=".epub,.pdf,.txt" style="display: none;">
+        </label>
+        <div class="url-input">
+            <input type="text" id="bookUrl" placeholder="图书URL (支持 .epub/.pdf)" value="">
+            <button id="loadUrlBtn"><i class="fas fa-link"></i> 加载</button>
+        </div>
+        <div class="ctrl-group">
+            <button class="btn-icon" id="fontMinusBtn" title="减小字号"><i class="fas fa-font"></i><span>-</span></button>
+            <button class="btn-icon" id="fontPlusBtn" title="增大字号"><i class="fas fa-font"></i><span>+</span></button>
+            <button class="btn-icon" id="themeToggleBtn" title="日夜模式"><i class="fas fa-moon"></i></button>
+            <button class="btn-icon" id="toggleSidebarBtn" title="目录"><i class="fas fa-list-ul"></i></button>
+        </div>
+    </div>
+    <div class="main-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header"><i class="fas fa-table-of-contents"></i> 目录</div>
+            <ul class="toc-list" id="tocList">
+                <li style="padding: 20px; text-align: center; color: gray;">暂无书籍，上传后显示目录</li>
+            </ul>
+        </aside>
+        <div class="reader-container" id="readerContainer">
+            <div id="readerArea" class="epub-viewer-area">
+                <div class="empty-state">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
+                    <p style="margin-top: 16px;">支持 EPUB / PDF / TXT<br>点击上传或拖拽文件至此</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="loadingToast" class="loading-overlay" style="display: none;">加载中...</div>
+
+<script>
+    // ---------- 全局变量 ----------
+    let currentBookType = null;   // 'epub', 'pdf', 'txt'
+    let currentEpubBook = null;   // Epub 对象
+    let currentRendition = null;   // rendition 实例
+    let currentPdfDoc = null;      // PDF 文档对象
+    let currentPdfPageNum = 1;
+    let currentPdfTotalPages = 0;
+    let currentTxtContent = null;
+    let currentFileName = "";
+    let currentFontSize = 100;      // 百分比
+    let currentTheme = "light";     // light/dark
+    let isSidebarVisible = true;
+    let currentTocItems = [];        // 存储目录跳转回调
+    
+    // 存储进度键值 (基于文件名)
+    let storagePrefix = "reader_progress_";
+    
+    // DOM 元素
+    const fileInput = document.getElementById('fileInput');
+    const bookUrlInput = document.getElementById('bookUrl');
+    const loadUrlBtn = document.getElementById('loadUrlBtn');
+    const readerArea = document.getElementById('readerArea');
+    const readerContainer = document.getElementById('readerContainer');
+    const tocListEl = document.getElementById('tocList');
+    const sidebar = document.getElementById('sidebar');
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const fontPlusBtn = document.getElementById('fontPlusBtn');
+    const fontMinusBtn = document.getElementById('fontMinusBtn');
+    const loadingToast = document.getElementById('loadingToast');
+    
+    // 辅助函数
+    function showLoading(show, text = "加载中...") {
+        if(show) {
+            loadingToast.innerText = text;
+            loadingToast.style.display = "block";
+        } else {
+            loadingToast.style.display = "none";
+        }
+    }
+    
+    function clearReader() {
+        // 清理epub渲染
+        if(currentRendition) {
+            try {
+                currentRendition.destroy();
+            } catch(e) {}
+            currentRendition = null;
+        }
+        if(currentEpubBook) {
+            try {
+                currentEpubBook.destroy();
+            } catch(e) {}
+            currentEpubBook = null;
+        }
+        currentPdfDoc = null;
+        currentTxtContent = null;
+        readerArea.innerHTML = '';
+        currentBookType = null;
+        // 清空目录
+        tocListEl.innerHTML = '<li style="padding: 20px; text-align: center; color: gray;">暂无目录</li>';
+        currentTocItems = [];
+    }
+    
+    // 保存阅读进度 (依赖类型)
+    function saveCurrentProgress() {
+        if(!currentFileName) return;
+        const key = storagePrefix + currentFileName;
+        if(currentBookType === 'epub' && currentRendition && currentRendition.book?.rendition?.location?.start?.cfi) {
+            try {
+                const cfi = currentRendition.currentLocation()?.start?.cfi;
+                if(cfi) localStorage.setItem(key, JSON.stringify({type:'epub', cfi}));
+            } catch(e) {}
+        } else if(currentBookType === 'pdf' && currentPdfDoc) {
+            // 获取当前页面: 滚动监听中维护currentPdfPageNum
+            localStorage.setItem(key, JSON.stringify({type:'pdf', page: currentPdfPageNum}));
+        } else if(currentBookType === 'txt') {
+            const scrollPercent = readerContainer.scrollTop / (readerArea.scrollHeight - readerContainer.clientHeight);
+            localStorage.setItem(key, JSON.stringify({type:'txt', scrollRatio: isNaN(scrollPercent)?0:scrollPercent}));
+        }
+    }
+    
+    // 加载进度
+    async function loadProgress() {
+        if(!currentFileName) return;
+        const key = storagePrefix + currentFileName;
+        const raw = localStorage.getItem(key);
+        if(!raw) return;
+        try {
+            const data = JSON.parse(raw);
+            if(data.type === 'epub' && currentBookType === 'epub' && currentRendition && data.cfi) {
+                try {
+                    await currentRendition.display(data.cfi);
+                } catch(e) { console.warn("跳转cfi失败", e); }
+            } else if(data.type === 'pdf' && currentBookType === 'pdf' && currentPdfDoc && data.page) {
+                const pageToGo = Math.min(data.page, currentPdfTotalPages);
+                if(pageToGo > 0) await renderPdfPage(pageToGo, true);
+            } else if(data.type === 'txt' && currentBookType === 'txt' && data.scrollRatio) {
+                const totalScroll = readerArea.scrollHeight - readerContainer.clientHeight;
+                readerContainer.scrollTop = totalScroll * data.scrollRatio;
+            }
+        } catch(e) {}
+    }
+    
+    // 监听滚动保存 (防抖)
+    let saveTimer = null;
+    function bindProgressSaveEvents() {
+        if(saveTimer) clearTimeout(saveTimer);
+        const saveHandler = () => {
+            if(saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => saveCurrentProgress(), 800);
+        };
+        if(currentBookType === 'pdf' || currentBookType === 'txt') {
+            readerContainer.addEventListener('scroll', saveHandler);
+        } else if(currentBookType === 'epub' && currentRendition) {
+            // Epub.js 自带 locationchange
+            currentRendition.on('relocated', () => {
+                if(saveTimer) clearTimeout(saveTimer);
+                saveTimer = setTimeout(() => saveCurrentProgress(), 500);
+            });
+        }
+    }
+    
+    // 主题切换
+    function setTheme(theme) {
+        currentTheme = theme;
+        if(theme === 'dark') {
+            document.body.classList.add('dark');
+        } else {
+            document.body.classList.remove('dark');
+        }
+        // 同步epub主题
+        if(currentBookType === 'epub' && currentRendition) {
+            if(theme === 'dark') {
+                currentRendition.themes.register('dark', {
+                    body: { background: '#11131f', color: '#e2e8f0' },
+                    a: { color: '#60a5fa' }
+                });
+                currentRendition.themes.select('dark');
+            } else {
+                currentRendition.themes.register('light', {
+                    body: { background: '#fefefe', color: '#1e293b' }
+                });
+                currentRendition.themes.select('light');
+            }
+        }
+        if(currentBookType === 'txt') {
+            const txtDiv = document.querySelector('.txt-viewer');
+            if(txtDiv) {
+                if(theme === 'dark') txtDiv.style.color = '#e2e8f0';
+                else txtDiv.style.color = '#1e293b';
+            }
+        }
+    }
+    
+    // 字体缩放
+    function adjustFontSize(delta) {
+        let newSize = currentFontSize + delta;
+        if(newSize < 70) newSize = 70;
+        if(newSize > 180) newSize = 180;
+        currentFontSize = newSize;
+        if(currentBookType === 'epub' && currentRendition) {
+            currentRendition.themes.fontSize(currentFontSize + "%");
+        }
+        if(currentBookType === 'txt') {
+            const txtDiv = document.querySelector('.txt-viewer');
+            if(txtDiv) txtDiv.style.fontSize = (currentFontSize / 100) * 1.1 + "rem";
+        }
+        if(currentBookType === 'pdf') {
+            // PDF渲染尺寸不变 但无影响
+        }
+    }
+    
+    // ========== EPUB 加载 ==========
+    async function loadEpub(arrayBuffer, filename) {
+        clearReader();
+        currentBookType = 'epub';
+        currentFileName = filename;
+        showLoading(true, "解析 EPUB ...");
+        try {
+            const blob = new Blob([arrayBuffer], {type: "application/epub+zip"});
+            const url = URL.createObjectURL(blob);
+            currentEpubBook = ePub(url);
+            currentRendition = currentEpubBook.renderTo("readerArea", { 
+                width: "100%", 
+                height: "100%",
+                spread: "none",
+                flow: "paginated",
+                manager: "continuous"
+            });
+            await currentRendition.display();
+            // 设置初始字体和主题
+            currentRendition.themes.register('light', { body: { background: '#fefefe', color: '#1e293b' } });
+            currentRendition.themes.register('dark', { body: { background: '#11131f', color: '#e2e8f0' } });
+            setTheme(currentTheme);
+            currentRendition.themes.fontSize(currentFontSize + "%");
+            
+            // 获取目录
+            const navigation = await currentEpubBook.loaded.navigation;
+            buildTocFromNav(navigation.toc);
+            // 绑定进度保存
+            bindProgressSaveEvents();
+            // 加载进度
+            await loadProgress();
+            showLoading(false);
+        } catch(err) {
+            showLoading(false);
+            readerArea.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>EPUB解析失败: ${err.message}</p></div>`;
+            console.error(err);
+        }
+    }
+    
+    function buildTocFromNav(toc, level=0) {
+        if(!toc || toc.length === 0) {
+            tocListEl.innerHTML = '<li style="padding: 20px;">无目录信息</li>';
+            return;
+        }
+        const ul = document.createElement('ul');
+        ul.className = 'toc-list';
+        const renderItems = (items, parentUl) => {
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'toc-item';
+                li.style.paddingLeft = (16 + (item.subitems?.length ? 8 : 0)) + 'px';
+                li.innerText = item.label || "章节";
+                li.title = item.label;
+                if(item.href) {
+                    li.style.cursor = 'pointer';
+                    li.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if(currentRendition && item.href) {
+                            currentRendition.display(item.href);
+                        }
+                    });
+                } else {
+                    li.style.opacity = '0.7';
+                }
+                parentUl.appendChild(li);
+                if(item.subitems && item.subitems.length) {
+                    const subUl = document.createElement('ul');
+                    subUl.style.listStyle = 'none';
+                    subUl.style.paddingLeft = '16px';
+                    renderItems(item.subitems, subUl);
+                    parentUl.appendChild(subUl);
+                }
+            });
+        };
+        renderItems(toc, ul);
+        tocListEl.innerHTML = '';
+        tocListEl.appendChild(ul);
+    }
+    
+    // ========== PDF 加载 ==========
+    async function loadPdf(arrayBuffer, filename) {
+        clearReader();
+        currentBookType = 'pdf';
+        currentFileName = filename;
+        showLoading(true, "加载PDF ...");
+        try {
+            const typedArray = new Uint8Array(arrayBuffer);
+            const loadingTask = pdfjsLib.getDocument({ data: typedArray });
+            currentPdfDoc = await loadingTask.promise;
+            currentPdfTotalPages = currentPdfDoc.numPages;
+            currentPdfPageNum = 1;
+            await renderPdfPage(1);
+            bindProgressSaveEvents();
+            await loadProgress();  // 可能跳转到保存的页码
+            buildPdfDummyToc();
+            showLoading(false);
+        } catch(e) {
+            showLoading(false);
+            readerArea.innerHTML = `<div class="empty-state"><i class="fas fa-file-pdf"></i><p>PDF加载失败: ${e.message}</p></div>`;
+        }
+    }
+    
+    async function renderPdfPage(pageNumber, isJump=false) {
+        if(!currentPdfDoc) return;
+        if(pageNumber < 1) pageNumber = 1;
+        if(pageNumber > currentPdfTotalPages) pageNumber = currentPdfTotalPages;
+        currentPdfPageNum = pageNumber;
+        // 如果是跳转，清空区域只渲染当前页或者增量更好；重新构建视图
+        if(isJump) {
+            readerArea.innerHTML = '';
+        }
+        // 为了保证滚动连续，我们渲染所有页面，但性能友好一点？根据PDF页数，少于100页一次性渲染，但为了更好的交互，使用懒加载按需渲染，但是为了简单且进度恢复精准，渲染全部页面并监听滚动时保存页码。
+        if(!isJump && readerArea.children.length > 0) {
+            // 已经全部渲染，仅滚动到指定页码（简易实现找canvas)
+            const canvases = document.querySelectorAll('.pdf-page-canvas');
+            if(canvases[pageNumber-1]) {
+                canvases[pageNumber-1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            return;
+        }
+        // 渲染所有页面
+        readerArea.innerHTML = '<div class="pdf-viewer" id="pdfViewer"></div>';
+        const container = document.getElementById('pdfViewer');
+        for(let i=1; i<=currentPdfTotalPages; i++) {
+            const page = await currentPdfDoc.getPage(i);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.className = 'pdf-page-canvas';
+            canvas.setAttribute('data-page-num', i);
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+            };
+            await page.render(renderContext).promise;
+            container.appendChild(canvas);
+        }
+        // 滚动保存当前页
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) {
+                    const pageNum = parseInt(entry.target.getAttribute('data-page-num'));
+                    if(!isNaN(pageNum)) currentPdfPageNum = pageNum;
+                }
+            });
+        }, { threshold: 0.5 });
+        document.querySelectorAll('.pdf-page-canvas').forEach(can => observer.observe(can));
+        // 如果跳转到指定页
+        if(isJump && currentPdfPageNum) {
+            const targetCanvas = document.querySelector(`.pdf-page-canvas[data-page-num='${currentPdfPageNum}']`);
+            if(targetCanvas) targetCanvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+    
+    function buildPdfDummyToc() {
+        if(!currentPdfDoc) return;
+        const total = currentPdfTotalPages;
+        tocListEl.innerHTML = '';
+        const ul = document.createElement('ul');
+        ul.className = 'toc-list';
+        for(let i=1; i<=total; i++) {
+            const li = document.createElement('li');
+            li.className = 'toc-item';
+            li.innerText = `第 ${i} 页`;
+            li.addEventListener('click', async () => {
+                await renderPdfPage(i, true);
+            });
+            ul.appendChild(li);
+        }
+        tocListEl.appendChild(ul);
+    }
+    
+    // ========== TXT 加载 ==========
+    async function loadTxt(arrayBuffer, filename) {
+        clearReader();
+        currentBookType = 'txt';
+        currentFileName = filename;
+        showLoading(true, "加载文本...");
+        try {
+            const decoder = new TextDecoder('utf-8');
+            const text = decoder.decode(arrayBuffer);
+            currentTxtContent = text;
+            const preDiv = document.createElement('div');
+            preDiv.className = 'txt-viewer';
+            preDiv.style.fontSize = (currentFontSize/100)*1.1 + "rem";
+            preDiv.style.color = currentTheme === 'dark' ? '#e2e8f0' : '#1e293b';
+            preDiv.innerText = text;
+            readerArea.innerHTML = '';
+            readerArea.appendChild(preDiv);
+            bindProgressSaveEvents();
+            await loadProgress(); // 恢复滚动位置
+            showLoading(false);
+            tocListEl.innerHTML = '<li class="toc-item">纯文本无目录</li>';
+        } catch(e) {
+            showLoading(false);
+            readerArea.innerHTML = `<div class="empty-state">文本解码失败</div>`;
+        }
+    }
+    
+    // 统一文件处理
+    async function processFile(file) {
+        if(!file) return;
+        const name = file.name;
+        const ext = name.split('.').pop().toLowerCase();
+        const buffer = await file.arrayBuffer();
+        if(ext === 'epub') {
+            await loadEpub(buffer, name);
+        } else if(ext === 'pdf') {
+            await loadPdf(buffer, name);
+        } else if(ext === 'txt') {
+            await loadTxt(buffer, name);
+        } else {
+            alert("仅支持 epub, pdf, txt 格式");
+        }
+    }
+    
+    // URL加载 (跨域可能会有问题但用户需提供支持CORS的资源)
+    async function loadFromUrl(url) {
+        if(!url.trim()) return;
+        showLoading(true, "获取远程文件...");
+        try {
+            const response = await fetch(url);
+            if(!response.ok) throw new Error(`HTTP ${response.status}`);
+            const blob = await response.blob();
+            const ext = url.split('.').pop().split('?')[0].toLowerCase();
+            let filename = url.split('/').pop() || "book";
+            if(!['epub','pdf','txt'].includes(ext)) throw new Error("仅支持epub/pdf/txt链接");
+            const fileObj = new File([blob], filename, { type: blob.type });
+            await processFile(fileObj);
+        } catch(err) {
+            showLoading(false);
+            alert("加载远程文件失败，可能跨域或地址无效: "+err.message);
+        }
+    }
+    
+    // 拖拽支持
+    function initDragAndDrop() {
+        const container = document.body;
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            container.style.opacity = '0.95';
+        });
+        container.addEventListener('dragleave', () => {
+            container.style.opacity = '1';
+        });
+        container.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            container.style.opacity = '1';
+            const files = e.dataTransfer.files;
+            if(files.length > 0) await processFile(files[0]);
+        });
+    }
+    
+    // 事件绑定
+    fileInput.addEventListener('change', (e) => {
+        if(e.target.files.length) processFile(e.target.files[0]);
+        fileInput.value = '';
+    });
+    loadUrlBtn.addEventListener('click', () => loadFromUrl(bookUrlInput.value));
+    toggleSidebarBtn.addEventListener('click', () => {
+        isSidebarVisible = !isSidebarVisible;
+        sidebar.classList.toggle('hide', !isSidebarVisible);
+    });
+    themeToggleBtn.addEventListener('click', () => {
+        setTheme(currentTheme === 'light' ? 'dark' : 'light');
+    });
+    fontPlusBtn.addEventListener('click', () => adjustFontSize(10));
+    fontMinusBtn.addEventListener('click', () => adjustFontSize(-10));
+    
+    // 页面关闭保存一次
+    window.addEventListener('beforeunload', () => saveCurrentProgress());
+    initDragAndDrop();
+    setTheme('light');
+    // 侧边栏默认显示
+    sidebar.classList.remove('hide');
+</script>
+</body>
+</html>
