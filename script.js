@@ -1,4 +1,4 @@
-// script.js - 完整阅读器逻辑
+// script.js - 完整阅读器逻辑（支持 TXT 自动编码检测）
 (function(){
     // ---------- 全局变量 ----------
     let currentBookType = null;   // 'epub', 'pdf', 'txt'
@@ -173,6 +173,59 @@
         } catch(e) { console.warn(e); }
     }
 
+    // ========== 新增：自动检测文本编码 ==========
+    /**
+     * 自动检测 ArrayBuffer 的文本编码
+     * @param {ArrayBuffer} buffer 文件数据
+     * @param {number} sampleSize 用于检测的字节数（默认 4096）
+     * @returns {string} 检测到的编码名称，如 'utf-8', 'gbk', 'big5'
+     */
+    async function detectEncoding(buffer, sampleSize = 4096) {
+        // 常见编码列表（按优先级排列）
+        const encodings = ['utf-8', 'gbk', 'gb2312', 'big5', 'shift-jis', 'euc-kr'];
+        const sample = buffer.slice(0, sampleSize);
+        
+        // 计算字符串中“好字符”的比例
+        function scoreText(text) {
+            let validChars = 0;
+            for (let i = 0; i < text.length && i < 1000; i++) {
+                const code = text.charCodeAt(i);
+                // 中文字符范围 (基本汉字)
+                if ((code >= 0x4E00 && code <= 0x9FFF) ||
+                    // 日文假名、韩文等常用范围（粗略）
+                    (code >= 0x3040 && code <= 0x30FF) ||
+                    (code >= 0xAC00 && code <= 0xD7AF) ||
+                    // 字母、数字、常用标点
+                    (code >= 0x20 && code <= 0x7E) ||
+                    (code === 0x0A || code === 0x0D || code === 0x09)) {
+                    validChars++;
+                }
+            }
+            return validChars / (text.length || 1);
+        }
+
+        let bestEncoding = 'utf-8';
+        let bestScore = 0;
+
+        for (const enc of encodings) {
+            try {
+                const decoder = new TextDecoder(enc, { fatal: false });
+                const text = decoder.decode(sample);
+                const score = scoreText(text);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestEncoding = enc;
+                }
+                // 如果得分极高（>0.95），提前结束
+                if (bestScore > 0.95) break;
+            } catch (e) {
+                // 某些编码可能不被浏览器支持，跳过
+                continue;
+            }
+        }
+        return bestEncoding;
+    }
+
     // 智能章节分割 (正则匹配)
     function splitIntelligentChapters(text) {
         const chapterPattern = /^(?:第[零一二三四五六七八九十百千万0-9]+[章节卷回]|第[0-9]+[章节卷回]|[卷][零一二三四五六七八九十百千万0-9]+|第[0-9]+[\.\、]?|[一二三四五六七八九十]+[、\.\s]章?)/gm;
@@ -249,12 +302,18 @@
 
     function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
 
+    // 修改后的 loadTxtSmartOrPlain：加入自动编码检测
     async function loadTxtSmartOrPlain(arrayBuffer, filename) {
         clearReader();
         currentBookType = 'txt';
         currentFileName = filename;
-        const decoder = new TextDecoder('utf-8');
+
+        // 自动检测编码
+        const encoding = await detectEncoding(arrayBuffer);
+        console.log(`检测到文本编码：${encoding}`);
+        const decoder = new TextDecoder(encoding);
         currentTxtRaw = decoder.decode(arrayBuffer);
+
         // 智能分割
         currentTxtChunks = splitIntelligentChapters(currentTxtRaw);
         const savedMode = localStorage.getItem(`txt_smart_mode_${filename}`);
