@@ -28,6 +28,7 @@
             <button class="btn-icon" id="fontPlusBtn" title="增大字号"><i class="fas fa-font"></i><span>+</span></button>
             <button class="btn-icon" id="themeToggleBtn" title="日夜模式"><i class="fas fa-moon"></i></button>
             <button class="btn-icon" id="smartChapterBtn" title="智能章节(TXT)"><i class="fas fa-code-branch"></i><span> 智能章</span></button>
+            <button class="btn-icon" id="searchBtn" title="全文搜索"><i class="fas fa-search"></i></button>
             <button class="btn-icon" id="toggleSidebarBtn" title="目录"><i class="fas fa-list-ul"></i></button>
         </div>
     </div>
@@ -39,6 +40,23 @@
             </ul>
         </aside>
         <div class="reader-container" id="readerContainer">
+            <!-- 搜索面板 -->
+            <div id="searchPanel" class="search-panel" style="display: none;">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="输入关键词搜索..." autocomplete="off">
+                    <button id="closeSearchBtn" class="btn-icon"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="search-results">
+                    <div class="search-section" id="localResults">
+                        <h4>📌 本页匹配</h4>
+                        <ul id="localMatchList"></ul>
+                    </div>
+                    <div class="search-section" id="globalResults">
+                        <h4>🌐 全文匹配</h4>
+                        <ul id="globalMatchList"></ul>
+                    </div>
+                </div>
+            </div>
             <div id="readerArea" class="reader-area-inner">
                 <div class="empty-state">
                     <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
