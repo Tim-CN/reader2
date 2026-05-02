@@ -277,6 +277,94 @@ button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* 搜索面板 */
+.search-panel {
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    max-height: 400px;
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+    z-index: 25;
+}
+body.dark .search-panel {
+    background: rgba(30, 34, 48, 0.95);
+}
+.search-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.search-bar input {
+    flex: 1;
+    padding: 10px 16px;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 40px;
+    font-size: 0.9rem;
+    background: rgba(0,0,0,0.02);
+    outline: none;
+    color: inherit;
+}
+body.dark .search-bar input {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.15);
+}
+.search-results {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.search-section h4 {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+    color: #3b82f6;
+    font-weight: 600;
+}
+.search-section ul {
+    list-style: none;
+    padding: 0;
+}
+.search-section li {
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    transition: background 0.1s;
+    word-break: break-all;
+}
+.search-section li:hover {
+    background: rgba(59,130,246,0.1);
+}
+.search-section li mark {
+    background: #fde047;
+    color: #000;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+body.dark .search-section li mark {
+    background: #ca8a04;
+    color: white;
+}
+
+/* 高亮样式 */
+.txt-viewer mark, .epub-viewer mark {
+    background: #fef08a;
+    color: #1e293b;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+body.dark .txt-viewer mark, body.dark .epub-viewer mark {
+    background: #b45309;
+    color: #fef9c3;
+}
+
 @media (max-width: 680px) {
     .sidebar { width: 260px; }
     .toolbar { padding: 8px 12px; gap: 8px; }
@@ -286,6 +374,7 @@ button:disabled {
     .file-label i { margin: 0; font-size: 1.2rem; }
     .url-input { min-width: 140px; }
     .chapter-nav { gap: 12px; padding: 6px 16px; font-size: 0.8rem; }
+    .search-panel { max-height: 300px; }
 }
 .smart-chapter-active {
     background: #3b82f6;
