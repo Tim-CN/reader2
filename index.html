@@ -2,16 +2,24 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZZX · 电子书阅读器</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        // 移动端跳转（若非移动端则继续）
+        (function(){
+            if(/Mobi|Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || window.innerWidth <= 680){
+                window.location.replace('mobile/');
+            }
+        })();
+    </script>
 </head>
 <body>
 <div class="app">
-    <div class="toolbar" id="toolbar">
+    <div class="toolbar">
         <div class="logo"><i class="fas fa-book-open"></i>Zero. Zip. Xplore.</div>
         <label class="file-label">
             <i class="fas fa-upload"></i><span> 上传图书</span>
@@ -22,11 +30,11 @@
             <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
             <button id="clearSearchBtn" class="btn-icon" style="display:none;"><i class="fas fa-times"></i></button>
             <div class="search-results-dropdown" id="searchDropdown" style="display:none;">
-                <div class="search-section" id="localResults">
+                <div class="search-section local">
                     <h4>📌 本页匹配</h4>
                     <ul id="localMatchList"></ul>
                 </div>
-                <div class="search-section" id="globalResults">
+                <div class="search-section global">
                     <h4>🌐 全文匹配</h4>
                     <ul id="globalMatchList"></ul>
                 </div>
@@ -38,7 +46,7 @@
             <button id="loadUrlBtn">加载</button>
             <button id="closeUrlPanelBtn"><i class="fas fa-times"></i></button>
         </div>
-        <div class="ctrl-group" id="ctrlGroup">
+        <div class="ctrl-group">
             <button class="btn-icon" id="fontMinusBtn" title="减小字号"><i class="fas fa-font"></i><span>-</span></button>
             <button class="btn-icon" id="fontPlusBtn" title="增大字号"><i class="fas fa-font"></i><span>+</span></button>
             <button class="btn-icon" id="themeToggleBtn" title="日夜模式"><i class="fas fa-moon"></i></button>
@@ -46,6 +54,7 @@
             <button class="btn-icon" id="toggleSidebarBtn" title="目录"><i class="fas fa-list-ul"></i></button>
         </div>
     </div>
+
     <div class="main-layout">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header"><i class="fas fa-table-of-contents"></i> 目录 / 章节</div>
@@ -53,10 +62,8 @@
                 <li style="padding: 20px; text-align: center; color: gray;">暂无书籍，上传后显示目录</li>
             </ul>
         </aside>
+
         <div class="reader-container" id="readerContainer">
-            <div class="mobile-tap-area left" id="tapLeft"></div>
-            <div class="mobile-tap-area center" id="tapCenter"></div>
-            <div class="mobile-tap-area right" id="tapRight"></div>
             <div id="readerArea" class="reader-area-inner">
                 <div class="empty-state">
                     <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
@@ -66,6 +73,7 @@
         </div>
     </div>
 </div>
+
 <div id="chapterNavBar" class="chapter-nav">
     <button id="prevChapterBtn"><i class="fas fa-chevron-left"></i></button>
     <span id="chapterTitle">章节标题</span>
