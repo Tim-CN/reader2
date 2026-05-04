@@ -1,1 +1,180 @@
-(function(){var a=null,b=null,c=null,d=null,e=0,f=1,g=null,h=[],i=!1,j=0,k="",l=100,m="light",n={};var o={};const p=document.getElementById("readerContainer"),q=document.getElementById("readerArea"),r=document.getElementById("fileInput"),s=document.getElementById("searchInput"),t=document.getElementById("clearSearchBtn"),u=document.getElementById("searchDropdown"),v=document.getElementById("localMatchList"),w=document.getElementById("globalMatchList"),x=document.getElementById("toolbarOverlay"),y=document.getElementById("sidebar"),z=document.getElementById("sidebarMask"),A=document.getElementById("tocList"),B=document.getElementById("bookTitle"),C=document.getElementById("themeToggleBtn");let D="",E=[],F=null;let G=null;const H="ZZXMobileDB",I="books";function J(){return new Promise((e,t)=>{const n=indexedDB.open(H,1);n.onerror=()=>t(n.error);n.onsuccess=()=>{G=n.result;e(G)};n.onupgradeneeded=e=>{const t=e.target.result;t.objectStoreNames.contains(I)||t.createObjectStore(I,{keyPath:"id"})}})}async function K(e,t,n,o){G||await J();G.transaction([I],"readwrite").objectStore(I).put({id:e,blob:t,fileName:n,fileType:o,timestamp:Date.now()})}async function L(e){G||await J();return new Promise(t=>{const n=G.transaction([I],"readonly").objectStore(I).get(e);n.onsuccess=()=>t(n.result)})}function M(){localStorage.setItem("zzx_mob_config",JSON.stringify({fontSize:l,theme:m,smartMode:i,lastBookId:a?a._url||a:"",lastType:b?b:"",lastFileName:k,pdfPage:f,chapterIndex:j}))}function N(){const e=localStorage.getItem("zzx_mob_config");if(e){try{const t=JSON.parse(e);l=t.fontSize||100;m=t.theme||"light";i=t.smartMode!==!1;O(m);P(0);return t}catch(e){}}return{}}function Q(e){return e<0||e>=h.length?null:(n[e]||(n[e]=h[e].content),n[e])}function R(e){const t=h[e];return`<div class="chapter-title">${S(t.title||"")}</div><div class="txt-viewer" style="font-size:${l/100*1.1}rem;color:${m==="dark"?"#e2e8f0":"#1e293b"}">${S(Q(e))}</div>`}function T(e){if(!h.length)return;j=Math.min(Math.max(0,e),h.length-1);q.innerHTML=R(j);q.scrollTop=0;B.innerText=h[j].title||k;U();V(j);W()}function U(){A.querySelectorAll(".toc-item").forEach((e,t)=>{e.classList.toggle("active",t===j)})}function V(e){const t=Math.max(0,e-10),n=Math.min(h.length-1,e+10);for(let o=t;o<=n;o++)n[o]||(n[o]=h[o].content)}function X(){if(b!=="txt"||!i||!h.length)return;const e=q.scrollTop,t=q.scrollHeight,n=q.clientHeight,o=50;e<=o&&j>0?Y(j-1,"top"):e+n>=t-o&&j<h.length-1&&Y(j+1,"bottom")}function Y(e,t){if(e<0||e>=h.length)return;const n=q.scrollHeight,o=R(e);if(t==="top"){const e=document.createElement("div");e.innerHTML=o;while(e.firstChild)q.insertBefore(e.firstChild,q.firstChild);q.scrollTop=q.scrollHeight-n}else if(t==="bottom"){const e=document.createElement("div");e.innerHTML=o;while(e.firstChild)q.appendChild(e.firstChild)}j=e;B.innerText=h[j].title||k;U();V(j);W()}async function Z(e,t){if(typeof ePub==="undefined"){alert("EPUB组件未加载，请刷新重试");return}$();b="epub";k=t;const n=new Blob([e],{type:"application/epub+zip"});c=ePub(URL.createObjectURL(n));d=c.renderTo(q,{width:"100%",height:"100%",spread:"none",flow:"paginated"});await d.display();d.themes.register("light",{body:{background:"#fefefe",color:"#1e293b"}});d.themes.register("dark",{body:{background:"#11131f",color:"#e2e8f0"}});O(m);d.themes.fontSize(l+"%");const o=await c.loaded.navigation;_o(o.toc);d.on("relocated",()=>{});B.innerText=t;await ap()}function _o(e){A.innerHTML="";const t=(e,n)=>{e.forEach(e=>{const o=document.createElement("li");o.className="toc-item";o.innerText=e.label||"章节";e.href&&o.addEventListener("click",()=>{d.display(e.href);bp()});n.appendChild(o);e.subitems&&t(e.subitems,n)})};t(e,A)}async function $p(e,t){if(typeof pdfjsLib==="undefined"){alert("PDF组件未加载，请刷新重试");return}$();b="pdf";k=t;d=await pdfjsLib.getDocument({data:new Uint8Array(e)}).promise;e=d.numPages;f=1;await aq();bq();B.innerText=t;await ap()}async function aq(){q.innerHTML="";for(let t=1;t<=e;t++){const e=await d.getPage(t),n=e.getViewport({scale:1.5}),o=document.createElement("canvas");o.height=n.height;o.width=n.width;o.className="pdf-page-canvas";await e.render({canvasContext:o.getContext("2d"),viewport:n}).promise;q.appendChild(o)}}function bq(){A.innerHTML="";for(let t=1;t<=e;t++){const e=document.createElement("li");e.className="toc-item";e.innerText=`第${t}页`;e.addEventListener("click",()=>{const e=document.querySelector(`.pdf-page-canvas:nth-child(${t})`);e&&e.scrollIntoView({behavior:"smooth"});bp()});A.appendChild(e)}}async function cq(e,t){$();b="txt";k=t;const n=await hq(e);g=new TextDecoder(n).decode(e);h=i_(g);i=!0;V(0);T(0);dq();B.innerText=h[0]?.title||t;await ap()}function dq(){A.innerHTML="";h.forEach((e,t)=>{const n=document.createElement("li");n.className="toc-item";n.innerText=e.title.length>20?e.title.slice(0,18)+"…":e.title;n.addEventListener("click",()=>{T(t);bp()});A.appendChild(n)})}async function eq(){i&&h.length?(T(j),dq()):(q.innerHTML=`<div class="txt-viewer" style="font-size:${l/100*1.1}rem;color:${m==="dark"?"#e2e8f0":"#1e293b"}">${S(g)}</div>`,A.innerHTML='<li class="toc-item">纯文本全文</li>',B.innerText=k)}function $(){d&&d.destroy().catch(()=>{});c&&c.destroy().catch(()=>{});d=null;g=null;h=[];n={};q.innerHTML='<div class="empty-state"><i class="fas fa-cloud-upload-alt" style="font-size:48px;opacity:0.4"></i><p>点击任意位置<br>上传图书开始阅读</p></div>';b=null;A.innerHTML='<li class="empty-toc">暂无目录</li>';B.innerText="未打开书籍"}function O(e){m=e;document.body.classList.toggle("dark",e==="dark");b==="epub"&&d&&d.themes.select(e);M()}function P(e){l=Math.min(180,Math.max(70,l+e));b==="epub"&&d&&d.themes.fontSize(l+"%");b==="txt"&&(i&&h.length?T(j):!i&&g&&(q.querySelector(".txt-viewer").style.fontSize=l/100*1.1+"rem"));M()}async function hq(e){const t=["utf-8","gbk","gb2312","big5","shift-jis","euc-kr"],n=e.slice(0,4096);function o(e){let t=0;for(let n=0;n<e.length&&n<1e3;n++){const o=e.charCodeAt(n);(o>=19968&&o<=40959)||(o>=12352&&o<=12543)||(o>=44032&&o<=55215)||(o>=32&&o<=126)||o===10||o===13||o===9?t++:0}return t/(e.length||1)}let r="utf-8",s=0;for(const e of t){try{const t=new TextDecoder(e,{fatal:!1}).decode(n),c=o(t);c>s&&(s=c,r=e);s>.95&&break}catch(e){}}return r}function i_(e){const t={},n=/^第([\d零一二三四五六七八九十百千万]+)([章节卷回部篇集辑课程])/gm;let o;while((o=n.exec(e))!==null)t[o[2]]=(t[o[2]]||0)+1;let r=null,s=0;for(const e in t)t[e]>s&&(s=t[e],r=e);const c=r?new RegExp(`^(第[\\d零一二三四五六七八九十百千万]+${r})`,"gm"):/^(第[\d零一二三四五六七八九十百千万]+[章节卷回部篇集辑课程]?)/gm;const u=e.split(/\r?\n/),a=[];let l="序言",f=[];for(const e of u){const n=e.trim();c.lastIndex=0;if(c.test(n)&&n.length<50){f.length&&a.push({title:l,content:f.join("\n")});l=n;f=[]}else f.push(e)}f.length&&a.push({title:l,content:f.join("\n")});return a.length?a:[{title:"全文",content:e}]}function S(e){return e.replace(/[&<>]/g,e=>e==="&"?"&amp;":e==="<"?"&lt;":"&gt;")}function fq(){D="";s.value="";u.style.display="none";gq();v.innerHTML="";w.innerHTML="";t.classList.remove("show")}function gq(e){if(D=e,!e.trim()){u.style.display="none";gq();t.classList.remove("show");return}t.classList.add("show");const n=e.toLowerCase(),o=i_();const r=[];let c=o.toLowerCase().indexOf(n);while(c!==-1){const e=Math.max(0,c-20),t=Math.min(o.length,c+e.length+20);r.push({start:c,end:c+e.length,text:o.slice(e,t).replace(/\n/g," ")});c=o.toLowerCase().indexOf(n,c+1)}E=r;v.innerHTML=r.length?r.map(e=>`<li>...${S(e.text)}...</li>`).join(""):"<li>无匹配</li>";const a=[];b==="txt"&&i&&h.length&&h.forEach((e,t)=>{const n=(Q(t)||"").toLowerCase().split(n).length-1;n>0&&a.push({chapterIndex:t,title:e.title,count:n})});w.innerHTML=a.length?a.map(e=>`<li data-chapter="${e.chapterIndex}">${S(e.title)} (${e.count})</li>`).join(""):"<li>全文无匹配</li>";u.style.display="block";hq()}function i_(){if(b==="txt")return i&&h.length?Q(j)||"":g||"";return q.innerText||""}function hq(){gq();if(!D)return;const e=q.querySelector(".txt-viewer");if(e){const t=new RegExp(`(${jq(D)})`,"gi");e.innerHTML=e.innerHTML.replace(t,"<mark>$1</mark>")}}function gq(){const e=q.querySelector(".txt-viewer");e&&(e.innerHTML=e.innerHTML.replace(/<\/?mark[^>]*>/gi,""))}function jq(e){return e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function kq(){x.style.display="block"}function lq(){x.style.display="none"}function mq(){x.style.display==="block"?lq():kq()}function nq(){y.classList.add("open");z.style.display="block"}function bp(){y.classList.remove("open");z.style.display="none"}document.addEventListener("click",function(e){if(e.target.closest(".toolbar-overlay, .sidebar, .sidebar-mask, .search-dropdown"))return;if(e.target.closest(".reader-container")){mq()}else{x.style.display="none"}});z.addEventListener("click",bp);document.getElementById("closeSidebarBtn").addEventListener("click",bp);r.addEventListener("change",async e=>{if(e.target.files.length){await oq(e.target.files[0]);r.value=""}});document.getElementById("urlLoadBtn").addEventListener("click",()=>{const e=prompt("输入图书URL:");e&&pq(e).catch(e=>alert("加载失败: "+e.message))});document.getElementById("fontMinusBtn").addEventListener("click",()=>P(-10));document.getElementById("fontPlusBtn").addEventListener("click",()=>P(10));C.addEventListener("click",()=>O(m==="light"?"dark":"light"));document.getElementById("smartChapterBtn").addEventListener("click",()=>{b!=="txt"||(i=!i,localStorage.setItem(`txt_smart_mode_${k}`,i),eq(),lq())});document.getElementById("tocBtn").addEventListener("click",()=>{nq();lq()});s.addEventListener("input",()=>{clearTimeout(F);F=setTimeout(()=>gq(s.value),300)});t.addEventListener("click",fq);document.addEventListener("click",e=>{e.target.closest(".search-row")||(u.style.display="none")});v.addEventListener("click",e=>{const t=e.target.closest("li");if(!t||!E.length)return;const n=Array.from(v.children).indexOf(t),o=E[n];if(!o)return;const r=q.querySelector(".txt-viewer");if(r){const e=document.createTreeWalker(r,NodeFilter.SHOW_TEXT);let t,n=0;while((t=e.nextNode())){const e=t.textContent.length;if(n+e>o.start){const e=document.createRange();e.setStart(t,o.start-n);e.setEnd(t,o.end-n);e.startContainer.parentElement.scrollIntoView({behavior:"smooth",block:"center"});break}n+=e}}});w.addEventListener("click",e=>{const t=e.target.closest("li");if(!t)return;const n=parseInt(t.dataset.chapter,10);!isNaN(n)&&h.length&&(T(n),lq(),setTimeout(()=>gq(D),300))});q.addEventListener("scroll",()=>{b==="txt"&&i&&X()});async function W(){if(!k)return;const e=`m_progress_${k}`;let t={type:b};if(b==="epub"&&d)try{const e=d.currentLocation();e?.start?.cfi&&(t.cfi=e.start.cfi)}catch(e){}else b==="pdf"?t.page=f:b==="txt"&&(t.chapterIndex=j);localStorage.setItem(e,JSON.stringify(t))}async function ap(){if(!k)return;const e=localStorage.getItem(`m_progress_${k}`);if(!e)return;try{const t=JSON.parse(e);t.type==="epub"&&b==="epub"&&t.cfi?d.display(t.cfi):t.type==="pdf"&&b==="pdf"?document.querySelector(`.pdf-page-canvas:nth-child(${t.page||1})`)?.scrollIntoView():t.type==="txt"&&b==="txt"&&T(t.chapterIndex||0)}catch(e){}}async function oq(e){if(!e)return;const t=e.name,n=t.split(".").pop().toLowerCase(),o=await e.arrayBuffer();a=`file_${t}_${Date.now()}`;try{await K(a,new Blob([o]),t,n)}catch(e){}k=t;fq();n==="epub"?await Z(o,t):n==="pdf"?await $p(o,t):n==="txt"?await cq(o,t):void 0;lq();M()}async function pq(e){const t=await fetch(e);if(!t.ok)throw new Error(`HTTP ${t.status}`);const n=await t.blob(),o=e.split("/").pop()||"book";await oq(new File([n],o))}function qq(){const e=document.getElementById("batteryTime");if(!e)return;const t=new Date,n=`${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;navigator.getBattery?navigator.getBattery().then(t=>{const o=Math.round(t.level*100);e.textContent=`${o}% · ${n}`;t.addEventListener("levelchange",()=>{e.textContent=`${Math.round(t.level*100)}% · ${n}`})}).catch(()=>{e.textContent=n}):e.textContent=n}qq();setInterval(qq,3e4);const rq=N();O(m);P(0);(async()=>{if(rq.lastBookId&&rq.lastType&&rq.lastFileName){const e=await L(rq.lastBookId);e&&e.blob&&await oq(new File([e.blob],rq.lastFileName,{type:`application/${rq.lastType}`}))}else{setTimeout(()=>{b||kq()},800)}})()})();
+/* =========================
+   ZZX Reader · Mobile Stable
+   ========================= */
+
+(function () {
+    'use strict';
+
+    /* ===== DOM ===== */
+    const readerContainer = document.getElementById('readerContainer');
+    const readerArea = document.getElementById('readerArea');
+    const fileInput = document.getElementById('fileInput');
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const searchDropdown = document.getElementById('searchDropdown');
+    const localMatchList = document.getElementById('localMatchList');
+    const globalMatchList = document.getElementById('globalMatchList');
+    const toolbar = document.getElementById('toolbarOverlay');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarMask = document.getElementById('sidebarMask');
+    const tocList = document.getElementById('tocList');
+    const bookTitle = document.getElementById('bookTitle');
+
+    /* ===== State ===== */
+    let bookType = null;
+    let bookName = '';
+    let epubBook = null;
+    let epubRendition = null;
+    let pdfDoc = null;
+    let pdfPage = 1;
+    let txtRaw = '';
+    let txtChapters = [];
+    let txtChapterIndex = 0;
+    let smartMode = false;
+    let fontSize = 100;
+    let theme = 'light';
+
+    /* ===== Utils ===== */
+    const debounce = (fn, ms) => {
+        let t;
+        return (...args) => {
+            clearTimeout(t);
+            t = setTimeout(() => fn(...args), ms);
+        };
+    };
+
+    const escapeHTML = str =>
+        str.replace(/[&<>]/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])
+        );
+
+    /* ===== UI ===== */
+    const showToolbar = () => toolbar.style.display = 'block';
+    const hideToolbar = () => toolbar.style.display = 'none';
+
+    document.addEventListener('click', e => {
+        if (e.target.closest('.reader-container')) {
+            toolbar.style.display === 'none' ? showToolbar() : hideToolbar();
+        }
+    });
+
+    /* ===== Theme / Font ===== */
+    const applyTheme = () => {
+        document.body.classList.toggle('dark', theme === 'dark');
+        if (epubRendition) epubRendition.themes.select(theme);
+        localStorage.setItem('zzx_theme', theme);
+    };
+
+    const changeFontSize = delta => {
+        fontSize = Math.min(180, Math.max(70, fontSize + delta));
+        if (epubRendition) epubRendition.themes.fontSize(fontSize + '%');
+        document.querySelectorAll('.txt-viewer').forEach(el =>
+            el.style.fontSize = (fontSize / 100 * 1.1) + 'rem'
+        );
+        localStorage.setItem('zzx_font', fontSize);
+    };
+
+    /* ===== Clear Reader ===== */
+    const clearReader = () => {
+        readerArea.innerHTML = '<div class="empty-state">点击上传图书</div>';
+        txtChapters = [];
+        txtRaw = '';
+        epubBook = null;
+        pdfDoc = null;
+    };
+
+    /* ===== TXT（稳定版）===== */
+    const renderTxtChapter = index => {
+        if (!txtChapters.length) return;
+        txtChapterIndex = Math.max(0, Math.min(txtChapters.length - 1, index));
+        const ch = txtChapters[txtChapterIndex];
+
+        readerArea.innerHTML = `
+        <div class="txt-viewer" style="font-size:${fontSize / 100 * 1.1}rem">
+            <h3>${escapeHTML(ch.title)}</h3>
+            <div>${escapeHTML(ch.content)}</div>
+        </div>`;
+
+        bookTitle.innerText = ch.title;
+        highlightSearch();
+    };
+
+    /* ===== Search（不炸 DOM）===== */
+    let currentSearch = '';
+
+    const highlightSearch = () => {
+        removeHighlight();
+        if (!currentSearch) return;
+
+        const walker = document.createTreeWalker(
+            readerArea,
+            NodeFilter.SHOW_TEXT
+        );
+
+        let node;
+        while ((node = walker.nextNode())) {
+            const idx = node.textContent.toLowerCase().indexOf(currentSearch);
+            if (idx >= 0) {
+                const range = document.createRange();
+                range.setStart(node, idx);
+                range.setEnd(node, idx + currentSearch.length);
+                const mark = document.createElement('mark');
+                range.surroundContents(mark);
+            }
+        }
+    };
+
+    const removeHighlight = () => {
+        readerArea.querySelectorAll('mark').forEach(m => {
+            m.replaceWith(document.createTextNode(m.textContent));
+        });
+    };
+
+    searchInput.addEventListener('input', debounce(() => {
+        currentSearch = searchInput.value.trim().toLowerCase();
+        clearSearchBtn.style.display = currentSearch ? 'block' : 'none';
+        highlightSearch();
+    }, 300));
+
+    clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        currentSearch = '';
+        removeHighlight();
+        clearSearchBtn.style.display = 'none';
+    });
+
+    /* ===== File Handler ===== */
+    fileInput.addEventListener('change', async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        clearReader();
+        bookName = file.name;
+
+        const buffer = await file.arrayBuffer();
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        if (ext === 'epub') {
+            epubBook = ePub(new Blob([buffer]));
+            epubRendition = epubBook.renderTo(readerArea, {
+                width: '100%',
+                height: '100%'
+            });
+            await epubRendition.display();
+            epubRendition.themes.select(theme);
+            epubRendition.themes.fontSize(fontSize + '%');
+        }
+
+        if (ext === 'txt') {
+            const text = new TextDecoder('utf-8').decode(buffer);
+            txtRaw = text;
+            txtChapters = [{ title: '全文', content: text }];
+            renderTxtChapter(0);
+        }
+    });
+
+    /* ===== Init ===== */
+    theme = localStorage.getItem('zzx_theme') || 'light';
+    fontSize = Number(localStorage.getItem('zzx_font')) || 100;
+    applyTheme();
+
+})();
