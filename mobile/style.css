@@ -1,4 +1,3 @@
-/* mobile/style.css - 移动版电子书阅读器样式，适配竖屏与触控 */
 * {
     margin: 0;
     padding: 0;
@@ -325,23 +324,33 @@ body.dark .sidebar {
     font-weight: 500;
 }
 
-/* 阅读容器 */
+/* 阅读容器 - 修复滚动 */
 .reader-container {
     flex: 1;
     overflow-y: auto;
-    background: #fefefe;
-    padding: 16px 12px;
     -webkit-overflow-scrolling: touch;
+    background: #fefefe;
+    position: relative;
 }
 
 body.dark .reader-container {
     background: #11131f;
 }
 
+/* 内部内容区域，高度由内容撑开 */
 .reader-area-inner {
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
+    padding: 16px 12px;
+    min-height: 100%;
+}
+
+/* EPUB 渲染区域必须占据完整高度 */
+#readerArea {
+    height: 100%;
+    width: 100%;
+    position: relative;
 }
 
 /* PDF 视图 */
@@ -370,7 +379,7 @@ body.dark .reader-container {
     padding-bottom: 60px;
 }
 
-/* 底部章节导航 (移动端常驻智能章节) */
+/* 底部章节导航 (移动端智能章节) */
 .chapter-nav {
     position: fixed;
     bottom: 0;
@@ -459,18 +468,21 @@ body.dark mark {
     padding: 20px;
 }
 
-/* 针对 epub 渲染区域 */
-#readerArea {
-    overflow: hidden;
+/* EPUB 内部 iframe 自适应 */
+.epub-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: inherit;
 }
 
-/* 触摸优化 */
-button, .toc-item, .mobile-file-label, .search-results-dropdown li {
-    cursor: pointer;
-    touch-action: manipulation;
+/* 确保滚动条在移动端顺滑 */
+.reader-container::-webkit-scrollbar {
+    width: 4px;
+    background: transparent;
 }
 
-/* 暗色模式 epub 背景覆盖 */
-body.dark .epub-container iframe {
-    background: #11131f !important;
+.reader-container::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
 }
