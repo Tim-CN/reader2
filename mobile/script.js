@@ -17,9 +17,9 @@
     let currentTheme = "light";
     let currentBookUrlOrId = "";
 
-    // DOM元素
+    // DOM元素（⚠️ readerArea 需用 let，因为后续会重新赋值）
     const readerContainer = document.getElementById('readerContainer');
-    const readerArea = document.getElementById('readerArea');
+    let readerArea = document.getElementById('readerArea');
     const pageSlider = document.getElementById('pageSlider');
     const fileInput = document.getElementById('fileInput');
     const searchInput = document.getElementById('searchInput');
@@ -34,8 +34,9 @@
     const bookTitleEl = document.getElementById('bookTitle');
     const themeToggleBtn = document.getElementById('themeToggleBtn');
 
-    // 搜索相关
+    // 搜索相关（⚠️ 补充 currentSearchMatches 声明）
     let currentSearchTerm = "";
+    let currentSearchMatches = [];
     let searchDebounceTimer;
 
     // 防重复点击
@@ -138,8 +139,7 @@
         // 更新当前页码
         if(currentBookType === 'pdf') currentPdfPageNum = pageIndex + 1;
         else if(currentBookType === 'txt') {
-            if(smartChapterMode) currentTxtPageIndex = pageIndex;
-            else currentTxtPageIndex = pageIndex;
+            currentTxtPageIndex = pageIndex;
         }
         // EPUB 由rendition管理，不在此处处理
         saveConfig();
@@ -147,7 +147,6 @@
 
     // ---------- 文本分页（TXT专用） ----------
     function paginateTxtText(text, containerHeight) {
-        // 创建一个临时元素测量每页可容纳的文本
         const measureDiv = document.createElement('div');
         measureDiv.style.cssText = `position:absolute;visibility:hidden;width:${readerContainer.clientWidth - 24}px;font:${(currentFontSize/100)*1.1}rem Georgia,Times New Roman,serif;line-height:1.6;white-space:pre-wrap;word-break:break-word;padding:0;`;
         document.body.appendChild(measureDiv);
@@ -155,7 +154,6 @@
         const pages = [];
         let remaining = text;
         while(remaining.length > 0) {
-            // 二分法查找适合一页的字符数
             let low = 0, high = remaining.length;
             let bestFit = 0;
             while(low <= high) {
@@ -169,7 +167,7 @@
                     high = mid - 1;
                 }
             }
-            if(bestFit === 0) bestFit = 1; // 至少一个字符
+            if(bestFit === 0) bestFit = 1;
             pages.push(remaining.slice(0, bestFit));
             remaining = remaining.slice(bestFit);
         }
@@ -178,12 +176,10 @@
     }
 
     async function renderTxtPages() {
-        // 重建分页并显示第一页
         if(!currentTxtRaw) return;
-        const containerHeight = readerContainer.clientHeight - 24; // 减去padding
+        const containerHeight = readerContainer.clientHeight - 24;
         currentTxtPages = paginateTxtText(currentTxtRaw, containerHeight);
         currentTxtPageIndex = 0;
-        // 构建所有页面DOM
         updatePageSliderForTxt();
         await goToPage(0);
     }
@@ -200,13 +196,12 @@
             pageDiv.dataset.pageIndex = idx;
             pageSlider.appendChild(pageDiv);
         });
-        // 更新阅读区引用
-        readerArea = document.querySelector('.txt-page.active') || pageSlider.firstElementChild;
+        // 重新指定 readerArea 为当前活动页（默认第一页），const 改为 let 后这里可行
+        readerArea = pageSlider.firstElementChild;
     }
 
-    // ---------- EPUB 翻页 （直接使用rendition） ----------
+    // ---------- EPUB 翻页 ----------
     async function setupEpubFlip() {
-        // EPUB.js 自带翻页动画，只需确保iframe占满整个pageSlider
         pageSlider.innerHTML = '';
         const pageDiv = document.createElement('div');
         pageDiv.className = 'reader-inner';
@@ -214,7 +209,6 @@
         pageDiv.style.width = '100%';
         pageDiv.id = 'readerArea';
         pageSlider.appendChild(pageDiv);
-        // 重新获取 readerArea 引用
         readerArea = pageDiv;
     }
 
@@ -249,14 +243,14 @@
         e.stopPropagation();
         if(!currentBookType || isAnimating) return;
         const now = Date.now();
-        if(now - lastTapTime < 500) return; // 防连点
+        if(now - lastTapTime < 500) return;
         lastTapTime = now;
 
         if(currentBookType === 'epub') {
             currentRendition?.prev();
         } else if(currentBookType === 'pdf') {
             if(currentPdfPageNum > 1) {
-                goToPage(currentPdfPageNum - 2); // 页码索引减1
+                goToPage(currentPdfPageNum - 2);
             }
         } else if(currentBookType === 'txt') {
             if(currentTxtPageIndex > 0) {
@@ -276,7 +270,7 @@
             currentRendition?.next();
         } else if(currentBookType === 'pdf') {
             if(currentPdfPageNum < currentPdfTotalPages) {
-                goToPage(currentPdfPageNum); // 页码索引加1
+                goToPage(currentPdfPageNum);
             }
         } else if(currentBookType === 'txt') {
             if(currentTxtPageIndex < currentTxtPages.length - 1) {
@@ -292,7 +286,6 @@
     function openSidebar() { sidebar.classList.add('open'); sidebarMask.style.display='block'; }
     function closeSidebar() { sidebar.classList.remove('open'); sidebarMask.style.display='none'; }
 
-    // 点击空白关闭
     readerContainer.addEventListener('click', (e) => {
         if(toolbarOverlay.style.display==='block' && !e.target.closest('.toolbar-overlay'))
             closeToolbar();
@@ -300,17 +293,15 @@
     sidebarMask.addEventListener('click', closeSidebar);
     document.getElementById('closeSidebarBtn').addEventListener('click', closeSidebar);
 
-    // 中间点击呼出工具栏
     document.getElementById('tapCenter').addEventListener('click', (e) => {
         e.stopPropagation();
         toggleToolbar();
     });
 
-    // 翻页事件绑定
     document.getElementById('tapLeft').addEventListener('click', tapLeftHandler);
     document.getElementById('tapRight').addEventListener('click', tapRightHandler);
 
-    // 工具栏按钮（保持不变，但上传后需初始化对应翻页）
+    // 工具栏按钮
     document.getElementById('fileUploadBtn').addEventListener('click', ()=>fileInput.click());
     fileInput.addEventListener('change', async e => {
         if(e.target.files.length) {
@@ -324,7 +315,7 @@
     });
     document.getElementById('fontMinusBtn').addEventListener('click', ()=>{
         adjustFontSize(-10);
-        if(currentBookType === 'txt') renderTxtPages(); // 重新分页
+        if(currentBookType === 'txt') renderTxtPages();
     });
     document.getElementById('fontPlusBtn').addEventListener('click', ()=>{
         adjustFontSize(10);
@@ -335,14 +326,14 @@
         if(currentBookType!=='txt') return;
         smartChapterMode=!smartChapterMode;
         localStorage.setItem(`txt_smart_mode_${currentFileName}`, smartChapterMode);
-        loadTxtWithSmartChapter(); // 重新加载章节模式
+        loadTxtWithSmartChapter();
     });
     document.getElementById('tocBtn').addEventListener('click', ()=>{
         openSidebar();
         closeToolbar();
     });
 
-    // ---------- 核心加载流程（适配翻页） ----------
+    // ---------- 核心加载流程 ----------
     async function processFile(file) {
         if(!file) return;
         const name=file.name, ext=name.split('.').pop().toLowerCase();
@@ -372,7 +363,7 @@
         currentBookType='epub';
         const blob=new Blob([buffer],{type:'application/epub+zip'});
         currentEpubBook=ePub(URL.createObjectURL(blob));
-        await setupEpubFlip(); // 准备单页容器
+        await setupEpubFlip();
         currentRendition=currentEpubBook.renderTo("readerArea",{width:"100%",height:"100%",spread:"none",flow:"paginated"});
         await currentRendition.display();
         currentRendition.themes.register('light',{body:{background:'#fefefe',color:'#1e293b'}});
@@ -381,9 +372,7 @@
         currentRendition.themes.fontSize(currentFontSize+"%");
         const nav=await currentEpubBook.loaded.navigation;
         buildTocFromEpub(nav.toc);
-        currentRendition.on('relocated', () => {
-            // EPUB翻页不需要手动更新位置
-        });
+        currentRendition.on('relocated', () => {});
         bookTitleEl.innerText=filename;
         await loadProgress();
     }
@@ -429,23 +418,22 @@
         currentBookType='txt';
         const enc=await detectEncoding(buffer);
         currentTxtRaw=new TextDecoder(enc).decode(buffer);
-        // 智能章节分割
         currentTxtChunks = splitIntelligentChapters(currentTxtRaw);
-        // 默认智能模式开启
         smartChapterMode = true;
         await loadTxtWithSmartChapter();
         bookTitleEl.innerText=filename;
+        // ⚠️ 补充加载进度恢复
+        await loadProgress();
     }
 
     async function loadTxtWithSmartChapter() {
         if(smartChapterMode && currentTxtChunks.length) {
-            // 将当前章节内容作为全文分页
             currentTxtRaw = currentTxtChunks[currentChapterIndex]?.content || '';
             await renderTxtPages();
             buildTocFromChunks();
             bookTitleEl.innerText = currentTxtChunks[currentChapterIndex]?.title || currentFileName;
         } else {
-            currentTxtRaw = currentTxtRaw; // 全文模式
+            // 全文模式不需要重新赋值 currentTxtRaw = currentTxtRaw
             await renderTxtPages();
             tocListEl.innerHTML = '<li class="toc-item">纯文本全文</li>';
             bookTitleEl.innerText = currentFileName;
@@ -497,7 +485,7 @@
         saveConfig();
     }
 
-    // 编码检测（保持不变）
+    // 编码检测
     async function detectEncoding(buffer, sampleSize = 4096) {
         const encodings = ['utf-8', 'gbk', 'gb2312', 'big5', 'shift-jis', 'euc-kr'];
         const sample = buffer.slice(0, sampleSize);
@@ -579,6 +567,7 @@
 
     function escapeHtml(s){ return s.replace(/[&<>]/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':'&gt;'); }
 
+    // ---------- 搜索功能 ----------
     function clearSearch() {
         currentSearchTerm = "";
         searchInput.value = "";
@@ -597,7 +586,6 @@
         }
         const lowerQuery = query.toLowerCase();
     
-        // 本页搜索（仅当前可见的页面内容）
         const localText = getCurrentVisibleText();
         const localMatches = [];
         let idx = localText.toLowerCase().indexOf(lowerQuery);
@@ -616,7 +604,6 @@
             ? localMatches.map(m => `<li>...${escapeHtml(m.text)}...</li>`).join('')
             : '<li>无匹配</li>';
     
-        // 全文搜索（简化：仅统计章节名，不做实时跳转）
         const globalRes = [];
         if (currentBookType === 'txt' && smartChapterMode && currentTxtChunks.length) {
             currentTxtChunks.forEach((ch, i) => {
@@ -639,14 +626,12 @@
             }
             return currentTxtRaw || '';
         }
-        // EPUB/PDF 暂不处理搜索
         return '';
     }
     
     function highlightLocalMatches() {
         removeHighlights();
         if (!currentSearchTerm) return;
-        // 只高亮当前展示的页面内容
         const container = document.querySelector('.txt-viewer') || document.querySelector('.reader-inner.active .txt-viewer');
         if (container) {
             const regex = new RegExp(`(${escapeRegex(currentSearchTerm)})`, 'gi');
@@ -663,7 +648,6 @@
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
-    // 搜索事件绑定（请确保已存在，可放在初始化末尾）
     searchInput.addEventListener('input', () => {
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(() => performSearch(searchInput.value), 300);
@@ -673,7 +657,6 @@
         if (!e.target.closest('.search-row')) searchDropdown.style.display = 'none';
     });
     
-    // 本地匹配点击跳转
     localMatchList.addEventListener('click', e => {
         const li = e.target.closest('li');
         if (!li || !currentSearchMatches.length) return;
@@ -698,13 +681,11 @@
         }
     });
     
-    // 全文匹配点击跳转到对应章节（在智能模式下）
     globalMatchList.addEventListener('click', e => {
         const li = e.target.closest('li');
         if (!li) return;
         const chapterIdx = parseInt(li.dataset.chapter, 10);
         if (!isNaN(chapterIdx) && currentTxtChunks.length) {
-            // 切换到该章节并重新分页
             currentChapterIndex = chapterIdx;
             currentTxtRaw = currentTxtChunks[chapterIdx].content;
             renderTxtPages();
@@ -759,7 +740,6 @@
         }
     })();
 
-    // 窗口大小变化重新分页（仅TXT）
     window.addEventListener('resize', () => {
         if(currentBookType === 'txt') renderTxtPages();
     });
