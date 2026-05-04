@@ -498,14 +498,220 @@
     }
 
     // 编码检测（保持不变）
-    async function detectEncoding(buffer) { ... } // 与之前完全相同，省略节省篇幅
+    async function detectEncoding(buffer, sampleSize = 4096) {
+        const encodings = ['utf-8', 'gbk', 'gb2312', 'big5', 'shift-jis', 'euc-kr'];
+        const sample = buffer.slice(0, sampleSize);
+        function scoreText(text) {
+            let validChars = 0;
+            for (let i = 0; i < text.length && i < 1000; i++) {
+                const code = text.charCodeAt(i);
+                if ((code >= 0x4E00 && code <= 0x9FFF) ||
+                    (code >= 0x3040 && code <= 0x30FF) ||
+                    (code >= 0xAC00 && code <= 0xD7AF) ||
+                    (code >= 0x20 && code <= 0x7E) ||
+                    (code === 0x0A || code === 0x0D || code === 0x09)) {
+                    validChars++;
+                }
+            }
+            return validChars / (text.length || 1);
+        }
+        let bestEncoding = 'utf-8';
+        let bestScore = 0;
+        for (const enc of encodings) {
+            try {
+                const decoder = new TextDecoder(enc, { fatal: false });
+                const text = decoder.decode(sample);
+                const score = scoreText(text);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestEncoding = enc;
+                }
+                if (bestScore > 0.95) break;
+            } catch (e) {}
+        }
+        return bestEncoding;
+    }
 
-    function splitIntelligentChapters(text) { ... } // 与之前完全相同
+    function splitIntelligentChapters(text) {
+        const unitCounter = {};
+        const pattern = /^第([\d零一二三四五六七八九十百千万]+)([章节卷回部篇集辑课程])/gm;
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const unit = match[2];
+            unitCounter[unit] = (unitCounter[unit] || 0) + 1;
+        }
+        let bestUnit = null;
+        let maxCount = 0;
+        for (let u in unitCounter) {
+            if (unitCounter[u] > maxCount) {
+                maxCount = unitCounter[u];
+                bestUnit = u;
+            }
+        }
+        let splitPattern;
+        if (bestUnit) {
+            splitPattern = new RegExp(`^(第[\\d零一二三四五六七八九十百千万]+${bestUnit})`, 'gm');
+        } else {
+            splitPattern = /^(第[\d零一二三四五六七八九十百千万]+[章节卷回部篇集辑课程]?)/gm;
+        }
+    
+        const lines = text.split(/\r?\n/);
+        const chapters = [];
+        let currentTitle = "序言";
+        let currentContent = [];
+        for (let line of lines) {
+            const trimmed = line.trim();
+            splitPattern.lastIndex = 0;
+            if (splitPattern.test(trimmed) && trimmed.length < 50) {
+                if (currentContent.length) {
+                    chapters.push({ title: currentTitle, content: currentContent.join('\n') });
+                }
+                currentTitle = trimmed;
+                currentContent = [];
+            } else {
+                currentContent.push(line);
+            }
+        }
+        if (currentContent.length) chapters.push({ title: currentTitle, content: currentContent.join('\n') });
+        if (chapters.length === 0) chapters = [{ title: "全文", content: text }];
+        return chapters;
+    }
 
     function escapeHtml(s){ return s.replace(/[&<>]/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':'&gt;'); }
 
-    // 搜索功能（简化，仅高亮当前可见页）
-    function clearSearch() { ... } // 保留原有搜索逻辑，仅需修改高亮获取范围
+    function clearSearch() {
+        currentSearchTerm = "";
+        searchInput.value = "";
+        searchDropdown.style.display = "none";
+        removeHighlights();
+        localMatchList.innerHTML = "";
+        globalMatchList.innerHTML = "";
+    }
+    
+    function performSearch(query) {
+        currentSearchTerm = query;
+        if (!query.trim()) {
+            searchDropdown.style.display = "none";
+            removeHighlights();
+            return;
+        }
+        const lowerQuery = query.toLowerCase();
+    
+        // 本页搜索（仅当前可见的页面内容）
+        const localText = getCurrentVisibleText();
+        const localMatches = [];
+        let idx = localText.toLowerCase().indexOf(lowerQuery);
+        while (idx !== -1) {
+            const start = Math.max(0, idx - 20);
+            const end = Math.min(localText.length, idx + query.length + 20);
+            localMatches.push({
+                start: idx,
+                end: idx + query.length,
+                text: localText.slice(start, end).replace(/\n/g, ' ')
+            });
+            idx = localText.toLowerCase().indexOf(lowerQuery, idx + 1);
+        }
+        currentSearchMatches = localMatches;
+        localMatchList.innerHTML = localMatches.length
+            ? localMatches.map(m => `<li>...${escapeHtml(m.text)}...</li>`).join('')
+            : '<li>无匹配</li>';
+    
+        // 全文搜索（简化：仅统计章节名，不做实时跳转）
+        const globalRes = [];
+        if (currentBookType === 'txt' && smartChapterMode && currentTxtChunks.length) {
+            currentTxtChunks.forEach((ch, i) => {
+                const count = (ch.content.toLowerCase().split(lowerQuery).length - 1);
+                if (count > 0) globalRes.push({ chapterIndex: i, title: ch.title, count });
+            });
+        }
+        globalMatchList.innerHTML = globalRes.length
+            ? globalRes.map(r => `<li data-chapter="${r.chapterIndex}">${escapeHtml(r.title)} (${r.count})</li>`).join('')
+            : '<li>全文无匹配</li>';
+    
+        searchDropdown.style.display = "block";
+        highlightLocalMatches();
+    }
+    
+    function getCurrentVisibleText() {
+        if (currentBookType === 'txt') {
+            if (smartChapterMode && currentTxtPages.length) {
+                return currentTxtPages[currentTxtPageIndex] || '';
+            }
+            return currentTxtRaw || '';
+        }
+        // EPUB/PDF 暂不处理搜索
+        return '';
+    }
+    
+    function highlightLocalMatches() {
+        removeHighlights();
+        if (!currentSearchTerm) return;
+        // 只高亮当前展示的页面内容
+        const container = document.querySelector('.txt-viewer') || document.querySelector('.reader-inner.active .txt-viewer');
+        if (container) {
+            const regex = new RegExp(`(${escapeRegex(currentSearchTerm)})`, 'gi');
+            container.innerHTML = container.innerHTML.replace(regex, '<mark>$1</mark>');
+        }
+    }
+    
+    function removeHighlights() {
+        const container = document.querySelector('.txt-viewer') || document.querySelector('.reader-inner.active .txt-viewer');
+        if (container) container.innerHTML = container.innerHTML.replace(/<\/?mark[^>]*>/gi, '');
+    }
+    
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    // 搜索事件绑定（请确保已存在，可放在初始化末尾）
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => performSearch(searchInput.value), 300);
+    });
+    clearSearchBtn.addEventListener('click', clearSearch);
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-row')) searchDropdown.style.display = 'none';
+    });
+    
+    // 本地匹配点击跳转
+    localMatchList.addEventListener('click', e => {
+        const li = e.target.closest('li');
+        if (!li || !currentSearchMatches.length) return;
+        const index = Array.from(localMatchList.children).indexOf(li);
+        const match = currentSearchMatches[index];
+        if (!match) return;
+        const container = document.querySelector('.txt-viewer') || document.querySelector('.reader-inner.active .txt-viewer');
+        if (container) {
+            const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+            let node, offset = 0;
+            while ((node = walker.nextNode())) {
+                const len = node.textContent.length;
+                if (offset + len > match.start) {
+                    const range = document.createRange();
+                    range.setStart(node, match.start - offset);
+                    range.setEnd(node, match.end - offset);
+                    range.startContainer.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    break;
+                }
+                offset += len;
+            }
+        }
+    });
+    
+    // 全文匹配点击跳转到对应章节（在智能模式下）
+    globalMatchList.addEventListener('click', e => {
+        const li = e.target.closest('li');
+        if (!li) return;
+        const chapterIdx = parseInt(li.dataset.chapter, 10);
+        if (!isNaN(chapterIdx) && currentTxtChunks.length) {
+            // 切换到该章节并重新分页
+            currentChapterIndex = chapterIdx;
+            currentTxtRaw = currentTxtChunks[chapterIdx].content;
+            renderTxtPages();
+            closeToolbar();
+            setTimeout(() => performSearch(currentSearchTerm), 300);
+        }
+    });
 
     // ---------- 进度保存与恢复 ----------
     async function saveProgress() {
