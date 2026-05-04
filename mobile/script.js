@@ -12,12 +12,57 @@ async function loadBook(id){if(!db)await initDB();return new Promise(resolve=>{c
 function saveConfig(){localStorage.setItem("zzx_mob_config",JSON.stringify({fontSize:currentFontSize,theme:currentTheme,smartMode:smartChapterMode,lastBookId:currentBookUrlOrId,lastType:currentBookType,lastFileName:currentFileName,pdfPage:currentPdfPageNum,txtPage:currentTxtPageIndex,chapterIndex:currentChapterIndex}))}
 function loadConfig(){const raw=localStorage.getItem("zzx_mob_config");if(raw){try{const c=JSON.parse(raw);currentFontSize=c.fontSize||100;currentTheme=c.theme||"light";smartChapterMode=c.smartMode||!1;setTheme(currentTheme);adjustFontSize(0);return c}catch(e){}}return{}}
 function slideTo(offsetX){return new Promise(resolve=>{pageSlider.classList.add('animating');pageSlider.style.transform=`translateX(${offsetX}px)`;const onEnd=()=>{pageSlider.removeEventListener('transitionend',onEnd);pageSlider.classList.remove('animating');resolve()};pageSlider.addEventListener('transitionend',onEnd);setTimeout(()=>{if(pageSlider.classList.contains('animating')){pageSlider.classList.remove('animating');resolve()}},400)})}
-async function goToPage(pageIndex,direction=0){if(isAnimating)return;isAnimating=!0;const containerWidth=readerContainer.clientWidth;let targetX=-pageIndex*containerWidth;await slideTo(targetX);isAnimating=!1;if(currentBookType==='pdf')currentPdfPageNum=pageIndex+1;else if(currentBookType==='txt')currentTxtPageIndex=pageIndex;saveConfig()}
+async function goToPage(pageIndex){if(isAnimating)return;isAnimating=!0;const pageWidth=readerContainer.clientWidth; // 一页宽度即容器宽度
+let targetX=-pageIndex*pageWidth;await slideTo(targetX);isAnimating=!1;if(currentBookType==='pdf')currentPdfPageNum=pageIndex+1;else if(currentBookType==='txt')currentTxtPageIndex=pageIndex;saveConfig()}
 function paginateTxtText(text,containerHeight){const measureDiv=document.createElement('div');measureDiv.style.cssText=`position:absolute;visibility:hidden;width:${readerContainer.clientWidth-24}px;font:${(currentFontSize/100)*1.1}rem Georgia,Times New Roman,serif;line-height:1.6;white-space:pre-wrap;word-break:break-word;padding:0;`;document.body.appendChild(measureDiv);const pages=[];let remaining=text;while(remaining.length>0){let low=0,high=remaining.length,bestFit=0;while(low<=high){const mid=Math.floor((low+high)/2);measureDiv.textContent=remaining.slice(0,mid);const h=measureDiv.scrollHeight;if(h<=containerHeight){bestFit=mid;low=mid+1}else high=mid-1}if(bestFit===0)bestFit=1;pages.push(remaining.slice(0,bestFit));remaining=remaining.slice(bestFit)}document.body.removeChild(measureDiv);return pages.length?pages:['']}
 async function renderTxtPages(){if(!currentTxtRaw)return;const containerHeight=readerContainer.clientHeight-24;currentTxtPages=paginateTxtText(currentTxtRaw,containerHeight);currentTxtPageIndex=0;updatePageSliderForTxt();await goToPage(0)}
-function updatePageSliderForTxt(){pageSlider.innerHTML='';currentTxtPages.forEach((pageText,idx)=>{const pageDiv=document.createElement('div');pageDiv.className='reader-inner txt-page';pageDiv.innerHTML=`<div class="txt-viewer" style="font-size:${(currentFontSize/100)*1.1}rem; color:${currentTheme==='dark'?'#e2e8f0':'#1e293b'}">${escapeHtml(pageText)}</div>`;pageDiv.style.flex='0 0 100%';pageDiv.style.width='100%';pageDiv.style.overflowY='auto';pageDiv.dataset.pageIndex=idx;pageSlider.appendChild(pageDiv)});readerArea=pageSlider.firstElementChild}
-async function setupEpubFlip(){pageSlider.innerHTML='';const pageDiv=document.createElement('div');pageDiv.className='reader-inner';pageDiv.style.flex='0 0 100%';pageDiv.style.width='100%';pageDiv.id='readerArea';pageSlider.appendChild(pageDiv);readerArea=pageDiv}
-async function renderPdfForFlip(){if(!currentPdfDoc)return;const pages=[];for(let i=1;i<=currentPdfTotalPages;i++){const page=await currentPdfDoc.getPage(i),vp=page.getViewport({scale:1.5}),canvas=document.createElement('canvas');canvas.height=vp.height;canvas.width=vp.width;canvas.className='pdf-page-canvas';await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;const pageDiv=document.createElement('div');pageDiv.className='reader-inner';pageDiv.style.flex='0 0 100%';pageDiv.style.width='100%';pageDiv.style.overflowY='auto';pageDiv.appendChild(canvas);pageDiv.dataset.pageIndex=i-1;pages.push(pageDiv)}pageSlider.innerHTML='';pages.forEach(p=>pageSlider.appendChild(p));readerArea=pageSlider.firstElementChild}
+function updatePageSliderForTxt(){
+    const pageCount = currentTxtPages.length || 1;
+    const containerWidth = readerContainer.clientWidth;
+    // 关键修复：设置 pageSlider 总宽度为页数 × 容器宽度，这样平移才能看到不同页面
+    pageSlider.style.width = `${pageCount * containerWidth}px`;
+    pageSlider.innerHTML = '';
+    currentTxtPages.forEach((pageText, idx) => {
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'reader-inner txt-page';
+        pageDiv.innerHTML = `<div class="txt-viewer" style="font-size:${(currentFontSize/100)*1.1}rem; color:${currentTheme==='dark'?'#e2e8f0':'#1e293b'}">${escapeHtml(pageText)}</div>`;
+        pageDiv.style.flex = '0 0 auto'; // 改写为 auto，宽度由下面指定
+        pageDiv.style.width = `${containerWidth}px`;
+        pageDiv.style.overflowY = 'auto';
+        pageDiv.dataset.pageIndex = idx;
+        pageSlider.appendChild(pageDiv);
+    });
+    // 将当前阅读区引用指向第一个页面容器（不影响 readerArea 使用）
+    readerArea = pageSlider.firstElementChild;
+}
+async function setupEpubFlip(){
+    pageSlider.style.width = '100%'; // EPUB 单页，重置
+    pageSlider.innerHTML = '';
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'reader-inner';
+    pageDiv.style.flex = '0 0 100%';
+    pageDiv.style.width = '100%';
+    pageDiv.id = 'readerArea';
+    pageSlider.appendChild(pageDiv);
+    readerArea = pageDiv;
+}
+async function renderPdfForFlip(){
+    if(!currentPdfDoc)return;
+    const pageCount = currentPdfTotalPages;
+    const containerWidth = readerContainer.clientWidth;
+    pageSlider.style.width = `${pageCount * containerWidth}px`;
+    pageSlider.innerHTML = '';
+    for(let i=1;i<=pageCount;i++){
+        const page=await currentPdfDoc.getPage(i),vp=page.getViewport({scale:1.5}),canvas=document.createElement('canvas');
+        canvas.height=vp.height;canvas.width=vp.width;canvas.className='pdf-page-canvas';
+        await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+        const pageDiv=document.createElement('div');
+        pageDiv.className='reader-inner';pageDiv.style.flex='0 0 auto';pageDiv.style.width=`${containerWidth}px`;pageDiv.style.overflowY='auto';
+        pageDiv.appendChild(canvas);pageDiv.dataset.pageIndex=i-1;
+        pageSlider.appendChild(pageDiv);
+    }
+    readerArea = pageSlider.firstElementChild;
+}
 function tapLeftHandler(e){e.stopPropagation();if(!currentBookType||isAnimating)return;const now=Date.now();if(now-lastTapTime<500)return;lastTapTime=now;if(currentBookType==='epub')currentRendition?.prev();else if(currentBookType==='pdf'){if(currentPdfPageNum>1)goToPage(currentPdfPageNum-2)}else if(currentBookType==='txt'){if(currentTxtPageIndex>0)goToPage(currentTxtPageIndex-1)}}
 function tapRightHandler(e){e.stopPropagation();if(!currentBookType||isAnimating)return;const now=Date.now();if(now-lastTapTime<500)return;lastTapTime=now;if(currentBookType==='epub')currentRendition?.next();else if(currentBookType==='pdf'){if(currentPdfPageNum<currentPdfTotalPages)goToPage(currentPdfPageNum)}else if(currentBookType==='txt'){if(currentTxtPageIndex<currentTxtPages.length-1)goToPage(currentTxtPageIndex+1)}}
 function openToolbar(){toolbarOverlay.style.display='block'}function closeToolbar(){toolbarOverlay.style.display='none'}function toggleToolbar(){toolbarOverlay.style.display==='block'?closeToolbar():openToolbar()}function openSidebar(){sidebar.classList.add('open');sidebarMask.style.display='block'}function closeSidebar(){sidebar.classList.remove('open');sidebarMask.style.display='none'}
@@ -44,7 +89,7 @@ function buildPdfToc(){tocListEl.innerHTML='';for(let i=1;i<=currentPdfTotalPage
 async function loadTxt(buffer,filename){clearReader();currentBookType='txt';const enc=await detectEncoding(buffer);currentTxtRaw=new TextDecoder(enc).decode(buffer);currentTxtChunks=splitIntelligentChapters(currentTxtRaw);smartChapterMode=!0;await loadTxtWithSmartChapter();bookTitleEl.innerText=filename;await loadProgress()}
 async function loadTxtWithSmartChapter(){if(smartChapterMode&&currentTxtChunks.length){currentTxtRaw=currentTxtChunks[currentChapterIndex]?.content||'';await renderTxtPages();buildTocFromChunks();bookTitleEl.innerText=currentTxtChunks[currentChapterIndex]?.title||currentFileName}else{await renderTxtPages();tocListEl.innerHTML='<li class="toc-item">纯文本全文</li>';bookTitleEl.innerText=currentFileName}}
 function buildTocFromChunks(){tocListEl.innerHTML='';currentTxtChunks.forEach((ch,i)=>{const li=document.createElement('li');li.className='toc-item';if(i===currentChapterIndex)li.classList.add('active');li.innerText=ch.title.length>20?ch.title.slice(0,18)+'…':ch.title;li.addEventListener('click',()=>{currentChapterIndex=i;currentTxtRaw=ch.content;renderTxtPages();closeSidebar();saveConfig()});tocListEl.appendChild(li)})}
-function clearReader(){if(currentRendition)try{currentRendition.destroy()}catch(e){}if(currentEpubBook)try{currentEpubBook.destroy()}catch(e){}currentPdfDoc=null;currentTxtRaw=null;currentTxtPages=[];pageSlider.innerHTML='';const emptyDiv=document.createElement('div');emptyDiv.className='reader-inner';emptyDiv.innerHTML='<div class="empty-state"><i class="fas fa-cloud-upload-alt" style="font-size:48px;opacity:0.4"></i><p>点击屏幕中央<br>上传图书开始阅读</p></div>';pageSlider.appendChild(emptyDiv);readerArea=emptyDiv;currentBookType=null;tocListEl.innerHTML='<li class="empty-toc">暂无目录</li>'}
+function clearReader(){if(currentRendition)try{currentRendition.destroy()}catch(e){}if(currentEpubBook)try{currentEpubBook.destroy()}catch(e){}currentPdfDoc=null;currentTxtRaw=null;currentTxtPages=[];pageSlider.style.width='100%';pageSlider.innerHTML='';const emptyDiv=document.createElement('div');emptyDiv.className='reader-inner';emptyDiv.innerHTML='<div class="empty-state"><i class="fas fa-cloud-upload-alt" style="font-size:48px;opacity:0.4"></i><p>点击屏幕中央<br>上传图书开始阅读</p></div>';pageSlider.appendChild(emptyDiv);readerArea=emptyDiv;currentBookType=null;tocListEl.innerHTML='<li class="empty-toc">暂无目录</li>'}
 function setTheme(theme){currentTheme=theme;document.body.classList.toggle('dark',theme==='dark');if(currentBookType==='epub'&&currentRendition)currentRendition.themes.select(theme);saveConfig()}
 function adjustFontSize(delta){currentFontSize=Math.min(180,Math.max(70,currentFontSize+delta));if(currentBookType==='epub'&&currentRendition)currentRendition.themes.fontSize(currentFontSize+"%");saveConfig()}
 async function detectEncoding(buffer,sampleSize=4096){const encodings=['utf-8','gbk','gb2312','big5','shift-jis','euc-kr'],sample=buffer.slice(0,sampleSize);function scoreText(text){let validChars=0;for(let i=0;i<text.length&&i<1000;i++){const code=text.charCodeAt(i);if((code>=0x4E00&&code<=0x9FFF)||(code>=0x3040&&code<=0x30FF)||(code>=0xAC00&&code<=0xD7AF)||(code>=0x20&&code<=0x7E)||code===0x0A||code===0x0D||code===0x09)validChars++}return validChars/(text.length||1)}let bestEncoding='utf-8',bestScore=0;for(const enc of encodings){try{const decoder=new TextDecoder(enc,{fatal:!1}),text=decoder.decode(sample),score=scoreText(text);if(score>bestScore){bestScore=score;bestEncoding=enc}if(bestScore>.95)break}catch(e){}}return bestEncoding}
@@ -64,13 +109,12 @@ globalMatchList.addEventListener('click',e=>{const li=e.target.closest('li');if(
 async function saveProgress(){if(!currentFileName)return;const key=`m_progress_${currentFileName}`;let data={type:currentBookType};if(currentBookType==='epub'&&currentRendition){try{const loc=currentRendition.currentLocation();if(loc?.start?.cfi)data.cfi=loc.start.cfi}catch(e){}}else if(currentBookType==='pdf')data.page=currentPdfPageNum;else if(currentBookType==='txt')data.pageIndex=currentTxtPageIndex;localStorage.setItem(key,JSON.stringify(data))}
 async function loadProgress(){if(!currentFileName)return;const raw=localStorage.getItem(`m_progress_${currentFileName}`);if(!raw)return;try{const data=JSON.parse(raw);if(data.type==='epub'&&currentBookType==='epub'&&data.cfi){currentRendition.display(data.cfi)}else if(data.type==='pdf'&&currentBookType==='pdf'){goToPage(data.page-1)}else if(data.type==='txt'&&currentBookType==='txt'){currentTxtPageIndex=data.pageIndex||0;goToPage(currentTxtPageIndex)}}catch(e){}}
 
-// 电量与时间显示
+// 电量与时间（无电池API时只显示时间）
 function updateDateTimeBattery() {
     const el = document.getElementById('batteryTime');
     if (!el) return;
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    // 尝试获取电池电量
     if (navigator.getBattery) {
         navigator.getBattery().then(battery => {
             const level = Math.round(battery.level * 100);
@@ -78,15 +122,13 @@ function updateDateTimeBattery() {
             battery.addEventListener('levelchange', () => {
                 el.textContent = `${Math.round(battery.level * 100)}% · ${timeStr}`;
             });
-        }).catch(() => {
-            el.textContent = timeStr; // 失败时只显示时间
-        });
+        }).catch(() => { el.textContent = timeStr; });
     } else {
-        el.textContent = timeStr; // 不支持 API 只显示时间
+        el.textContent = timeStr;
     }
 }
 updateDateTimeBattery();
-setInterval(updateDateTimeBattery, 30000); // 30秒刷新一次
+setInterval(updateDateTimeBattery, 30000);
 
 const cfg = loadConfig();
 setTheme(currentTheme);
