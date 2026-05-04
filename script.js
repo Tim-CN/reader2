@@ -1,7 +1,7 @@
-// script.js - 完整阅读器逻辑（支持 TXT 自动编码检测 + 全文搜索）
+// script.js - 完整阅读器逻辑（搜索常驻、底部导航悬浮、智能章弱化、移动端翻页）
 (function(){
     // ---------- 全局变量 ----------
-    let currentBookType = null;   // 'epub', 'pdf', 'txt'
+    let currentBookType = null;
     let currentEpubBook = null;
     let currentRendition = null;
     let currentPdfDoc = null;
@@ -24,11 +24,10 @@
 
     // 搜索相关
     let currentSearchTerm = "";
-    let currentSearchMatches = [];        // 本地匹配列表 { start, end, text }
-    let currentActiveMatchIndex = -1;
-    let searchPendingChapter = null;     // 待跳转的章节索引与匹配索引
+    let currentSearchMatches = [];
+    let searchDebounceTimer = null;
 
-    // DOM 元素
+    // DOM
     const fileInput = document.getElementById('fileInput');
     const bookUrlInput = document.getElementById('bookUrl');
     const loadUrlBtn = document.getElementById('loadUrlBtn');
@@ -44,18 +43,24 @@
     const chapterNavBar = document.getElementById('chapterNavBar');
     const prevChapterBtn = document.getElementById('prevChapterBtn');
     const nextChapterBtn = document.getElementById('nextChapterBtn');
-    const chapterInfoSpan = document.getElementById('chapterInfo');
+    const chapterTitleSpan = document.getElementById('chapterTitle');
     const loadingToast = document.getElementById('loadingToast');
-
-    // 搜索 DOM
-    const searchBtn = document.getElementById('searchBtn');
-    const searchPanel = document.getElementById('searchPanel');
     const searchInput = document.getElementById('searchInput');
-    const closeSearchBtn = document.getElementById('closeSearchBtn');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const searchDropdown = document.getElementById('searchDropdown');
     const localMatchList = document.getElementById('localMatchList');
     const globalMatchList = document.getElementById('globalMatchList');
+    const urlLoadBtn = document.getElementById('urlLoadBtn');
+    const urlPanel = document.getElementById('urlPanel');
+    const closeUrlPanelBtn = document.getElementById('closeUrlPanelBtn');
+    const toolbar = document.getElementById('toolbar');
 
-    // 辅助函数
+    // 移动端元素
+    const tapLeft = document.getElementById('tapLeft');
+    const tapCenter = document.getElementById('tapCenter');
+    const tapRight = document.getElementById('tapRight');
+
+    // 辅助
     function showLoading(show, text = "加载中...") {
         if(show) {
             loadingToast.innerText = text;
@@ -65,7 +70,7 @@
         }
     }
 
-    // IndexedDB 初始化
+    // IndexedDB
     function initDB() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, 1);
@@ -113,7 +118,8 @@
             theme: currentTheme,
             lastBookId: currentBookUrlOrId,
             lastBookType: currentBookType,
-            lastFileName: currentFileName
+            lastFileName: currentFileName,
+            smartChapterMode: smartChapterMode
         };
         localStorage.setItem("zzx_reader_config", JSON.stringify(config));
     }
@@ -125,6 +131,7 @@
                 const cfg = JSON.parse(raw);
                 currentFontSize = cfg.fontSize || 100;
                 currentTheme = cfg.theme || "light";
+                smartChapterMode = cfg.smartChapterMode || false;
                 setTheme(currentTheme);
                 adjustFontSize(0);
                 return cfg;
@@ -136,7 +143,7 @@
     async function saveProgress() {
         if(!currentFileName) return;
         const key = `progress_${currentFileName}`;
-        let progressData = { type: currentBookType };
+        let progressData = { type: currentBookType, smartMode: smartChapterMode };
         if(currentBookType === 'epub' && currentRendition) {
             try {
                 const loc = currentRendition.currentLocation();
@@ -151,7 +158,6 @@
                 const scrollPercent = readerContainer.scrollTop / (readerArea.scrollHeight - readerContainer.clientHeight);
                 progressData.scrollRatio = isNaN(scrollPercent) ? 0 : scrollPercent;
             }
-            progressData.smartMode = smartChapterMode;
         }
         localStorage.setItem(key, JSON.stringify(progressData));
         saveGlobalConfig();
@@ -183,7 +189,7 @@
                     }, 100);
                 }
             }
-        } catch(e) { console.warn(e); }
+        } catch(e) {}
     }
 
     // 自动检测编码
@@ -216,16 +222,15 @@
                     bestEncoding = enc;
                 }
                 if (bestScore > 0.95) break;
-            } catch (e) { continue; }
+            } catch (e) {}
         }
         return bestEncoding;
     }
 
     // 智能章节分割（自适应单位）
     function splitIntelligentChapters(text) {
-        // 统计所有候选单位
         const unitCounter = {};
-        const pattern = /^第([\d零一二三四五六七八九十百千万]+)([章节卷回部篇集辑课程])\s*/gm;
+        const pattern = /^第([\d零一二三四五六七八九十百千万]+)([章节卷回部篇集辑课程])/gm;
         let match;
         while ((match = pattern.exec(text)) !== null) {
             const unit = match[2];
@@ -239,13 +244,10 @@
                 bestUnit = u;
             }
         }
-
-        // 构建分割正则
         let splitPattern;
         if (bestUnit) {
             splitPattern = new RegExp(`^(第[\\d零一二三四五六七八九十百千万]+${bestUnit})`, 'gm');
         } else {
-            // 没有常见单位时，尝试通用匹配
             splitPattern = /^(第[\d零一二三四五六七八九十百千万]+[章节卷回部篇集辑课程]?)/gm;
         }
 
@@ -256,7 +258,6 @@
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const trimmed = line.trim();
-            // 重置 lastIndex
             splitPattern.lastIndex = 0;
             if (splitPattern.test(trimmed) && trimmed.length < 50) {
                 if (currentContent.length > 0) {
@@ -281,20 +282,10 @@
         const htmlContent = `<div class="txt-viewer" style="font-size:${(currentFontSize/100)*1.1}rem; color:${currentTheme==='dark'?'#e2e8f0':'#1e293b'}"><h3 style="margin-bottom:1rem;">${escapeHtml(chapter.title)}</h3><div style="white-space:pre-wrap;">${escapeHtml(chapter.content)}</div></div>`;
         readerArea.innerHTML = htmlContent;
         updateTocForSmartChapters();
-        chapterInfoSpan.innerText = `${currentChapterIndex+1} / ${currentTxtChunks.length} · ${chapter.title}`;
-        chapterNavBar.style.display = 'flex';
+        chapterTitleSpan.innerText = chapter.title;
+        chapterNavBar.classList.remove('visible');
         readerContainer.scrollTop = 0;
-        // 如果搜索词存在，自动高亮并可能跳转
-        if (currentSearchTerm) {
-            performSearch(currentSearchTerm);
-            if (searchPendingChapter && searchPendingChapter.chapterIndex === currentChapterIndex) {
-                // 跳转到指定匹配项
-                setTimeout(() => {
-                    highlightAndScrollToMatch(searchPendingChapter.matchIndex);
-                    searchPendingChapter = null;
-                }, 50);
-            }
-        }
+        if (currentSearchTerm) performSearch(currentSearchTerm);
         saveProgress();
     }
 
@@ -332,6 +323,7 @@
             }
         }
         renderNextChunk();
+        chapterNavBar.classList.remove('visible');
     }
 
     function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
@@ -352,7 +344,6 @@
             await renderTxtChapter(0);
         } else {
             await renderFullTxtLazy();
-            chapterNavBar.style.display = 'none';
             buildTxtSimpleToc();
         }
         bindScrollSave();
@@ -375,22 +366,20 @@
             renderTxtChapter(currentChapterIndex);
         } else if(!smartChapterMode) {
             renderFullTxtLazy();
-            chapterNavBar.style.display = 'none';
             buildTxtSimpleToc();
         }
         saveProgress();
     }
 
     function updateSmartChapterUI() {
-        if(currentBookType === 'txt') {
-            if(smartChapterMode) smartChapterBtn.classList.add('smart-chapter-active');
-            else smartChapterBtn.classList.remove('smart-chapter-active');
+        if(currentBookType === 'txt' && smartChapterMode) {
+            smartChapterBtn.classList.add('smart-active');
         } else {
-            smartChapterBtn.classList.remove('smart-chapter-active');
+            smartChapterBtn.classList.remove('smart-active');
         }
     }
 
-    // EPUB 逻辑
+    // EPUB逻辑
     async function loadEpub(arrayBuffer, filename) {
         clearReader(); currentBookType='epub'; currentFileName=filename;
         showLoading(true); 
@@ -418,7 +407,7 @@
         render(toc,ul); tocListEl.appendChild(ul);
     }
     
-    // PDF 逻辑
+    // PDF逻辑
     async function loadPdf(arrayBuffer, filename){ 
         clearReader(); currentBookType='pdf'; currentFileName=filename; showLoading(true);
         try{
@@ -450,6 +439,7 @@
         document.querySelectorAll('.pdf-page-canvas').forEach(canvas => observer.observe(canvas));
         if(isJump) document.querySelector(`.pdf-page-canvas[data-page-num='${currentPdfPageNum}']`)?.scrollIntoView({behavior:'smooth'});
         buildPdfToc();
+        chapterTitleSpan.innerText = `第 ${currentPdfPageNum} 页`;
     }
     
     function buildPdfToc(){ 
@@ -463,8 +453,8 @@
         if(currentEpubBook) try{currentEpubBook.destroy();}catch(e){}
         currentPdfDoc=null; currentTxtRaw=null; currentTxtChunks=[];
         readerArea.innerHTML=''; currentBookType=null; tocListEl.innerHTML='<li style="padding:20px;text-align:center;">暂无目录</li>';
-        chapterNavBar.style.display='none';
-        // 清除搜索
+        chapterNavBar.classList.remove('visible');
+        chapterTitleSpan.innerText = '';
         clearSearch();
     }
     
@@ -520,6 +510,7 @@
             const file=new File([blob],filename,{type:blob.type});
             currentBookUrlOrId = url;
             await processFile(file);
+            urlPanel.style.display = 'none';
         }catch(err){ alert("加载失败:"+err.message); } finally{ showLoading(false); }
     }
 
@@ -528,101 +519,27 @@
         document.body.addEventListener('drop',async e=>{ e.preventDefault(); const f=e.dataTransfer.files; if(f.length) await processFile(f[0]); }); 
     }
     
-    // ========== 全文搜索功能 ==========
+    // ========== 全文搜索功能（常驻） ==========
     function clearSearch() {
         currentSearchTerm = "";
         currentSearchMatches = [];
-        currentActiveMatchIndex = -1;
-        searchPendingChapter = null;
-        if (searchInput) searchInput.value = "";
-        if (localMatchList) localMatchList.innerHTML = "";
-        if (globalMatchList) globalMatchList.innerHTML = "";
+        searchInput.value = "";
+        searchDropdown.style.display = "none";
+        clearSearchBtn.style.display = "none";
         removeHighlights();
+        localMatchList.innerHTML = "";
+        globalMatchList.innerHTML = "";
     }
 
-    function openSearchPanel() {
-        searchPanel.style.display = 'block';
-        searchInput.focus();
-        if (currentSearchTerm) {
-            searchInput.value = currentSearchTerm;
-            performSearch(currentSearchTerm);
-        }
-    }
-
-    function closeSearchPanel() {
-        searchPanel.style.display = 'none';
-        clearSearch();
-    }
-
-    // 获取当前视图的文本内容（用于本地搜索）
-    function getCurrentVisibleText() {
-        if (currentBookType === 'txt') {
-            if (smartChapterMode && currentTxtChunks.length) {
-                return currentTxtChunks[currentChapterIndex].content;
-            } else {
-                return currentTxtRaw || "";
-            }
-        } else if (currentBookType === 'epub') {
-            // 尝试从 iframe 获取文本，但可能跨域；简单粗暴：获取 readerArea 内部文本
-            return readerArea.innerText || "";
-        } else if (currentBookType === 'pdf') {
-            return readerArea.innerText || "";
-        }
-        return "";
-    }
-
-    // 全文搜索（跨章节）
-    function searchGlobal(query) {
-        if (!query) return [];
-        const results = [];
-        const lowerQuery = query.toLowerCase();
-        if (currentBookType === 'txt' && smartChapterMode && currentTxtChunks.length) {
-            currentTxtChunks.forEach((ch, idx) => {
-                const content = ch.content;
-                let count = 0;
-                let pos = content.toLowerCase().indexOf(lowerQuery);
-                while (pos !== -1) {
-                    count++;
-                    pos = content.toLowerCase().indexOf(lowerQuery, pos + 1);
-                }
-                if (count > 0) {
-                    results.push({ chapterIndex: idx, title: ch.title, count });
-                }
-            });
-        } else if (currentBookType === 'epub' && currentRendition) {
-            // 使用 epub.js 内置搜索
-            return null; // 将在 performSearch 中异步处理
-        } else if (currentBookType === 'txt') {
-            // 非智能模式，全文算一章
-            const count = (currentTxtRaw || "").toLowerCase().split(lowerQuery).length - 1;
-            if (count > 0) results.push({ chapterIndex: 0, title: "全文", count });
-        } else if (currentBookType === 'pdf') {
-            return []; // 暂不支持
-        }
-        return results;
-    }
-
-    async function performEpubSearch(query) {
-        if (!currentRendition) return;
-        try {
-            const results = await currentRendition.search(query);
-            return results.map(item => ({
-                cfi: item.cfi,
-                excerpt: item.excerpt || ""
-            }));
-        } catch (e) {
-            return [];
-        }
-    }
-
-    async function performSearch(query) {
+    function performSearch(query) {
         currentSearchTerm = query;
         if (!query.trim()) {
-            localMatchList.innerHTML = "";
-            globalMatchList.innerHTML = "";
+            searchDropdown.style.display = "none";
+            clearSearchBtn.style.display = "none";
             removeHighlights();
             return;
         }
+        clearSearchBtn.style.display = "inline-flex";
         const lowerQuery = query.toLowerCase();
 
         // 本页搜索
@@ -640,47 +557,75 @@
             idx = localText.toLowerCase().indexOf(lowerQuery, idx + 1);
         }
         currentSearchMatches = localMatches;
-        currentActiveMatchIndex = localMatches.length > 0 ? 0 : -1;
 
-        // 渲染本地结果
         localMatchList.innerHTML = localMatches.length 
-            ? localMatches.map((m, i) => `<li data-match-index="${i}">...${escapeHtml(m.text)}...</li>`).join('')
+            ? localMatches.map(m => `<li>...${escapeHtml(m.text)}...</li>`).join('')
             : '<li>无匹配</li>';
 
         // 全文搜索
-        if (currentBookType === 'epub') {
-            const epubResults = await performEpubSearch(query);
-            if (epubResults && epubResults.length) {
-                globalMatchList.innerHTML = epubResults.map((r, i) => `<li data-epub-index="${i}" data-cfi="${r.cfi}">${escapeHtml(r.excerpt)}</li>`).join('');
-            } else {
-                globalMatchList.innerHTML = '<li>全文无匹配</li>';
-            }
+        if (currentBookType === 'epub' && currentRendition) {
+            currentRendition.search(query).then(results => {
+                if (results && results.length) {
+                    globalMatchList.innerHTML = results.map(r => `<li data-cfi="${r.cfi}">${escapeHtml(r.excerpt)}</li>`).join('');
+                } else {
+                    globalMatchList.innerHTML = '<li>全文无匹配</li>';
+                }
+            }).catch(() => {
+                globalMatchList.innerHTML = '<li>搜索失败</li>';
+            });
         } else {
             const globalResults = searchGlobal(query);
-            if (globalResults && globalResults.length) {
-                globalMatchList.innerHTML = globalResults.map(r => {
+            globalMatchList.innerHTML = globalResults.length
+                ? globalResults.map(r => {
                     if (r.chapterIndex !== undefined) {
                         return `<li data-chapter-index="${r.chapterIndex}">${escapeHtml(r.title)} (${r.count}个匹配)</li>`;
                     } else {
                         return `<li>${escapeHtml(r.title)} (${r.count}个匹配)</li>`;
                     }
-                }).join('');
-            } else {
-                globalMatchList.innerHTML = '<li>全文无匹配</li>';
-            }
+                }).join('')
+                : '<li>全文无匹配</li>';
         }
 
-        // 高亮当前视图
+        searchDropdown.style.display = "block";
         highlightLocalMatches();
+    }
+
+    function getCurrentVisibleText() {
+        if (currentBookType === 'txt') {
+            if (smartChapterMode && currentTxtChunks.length) {
+                return currentTxtChunks[currentChapterIndex].content;
+            } else {
+                return currentTxtRaw || "";
+            }
+        } else if (currentBookType === 'epub') {
+            return readerArea.innerText || "";
+        } else if (currentBookType === 'pdf') {
+            return readerArea.innerText || "";
+        }
+        return "";
+    }
+
+    function searchGlobal(query) {
+        if (!query) return [];
+        const lowerQuery = query.toLowerCase();
+        const results = [];
+        if (currentBookType === 'txt' && smartChapterMode && currentTxtChunks.length) {
+            currentTxtChunks.forEach((ch, idx) => {
+                const count = (ch.content.toLowerCase().split(lowerQuery).length - 1);
+                if (count > 0) results.push({ chapterIndex: idx, title: ch.title, count });
+            });
+        } else if (currentBookType === 'txt') {
+            const count = (currentTxtRaw || "").toLowerCase().split(lowerQuery).length - 1;
+            if (count > 0) results.push({ chapterIndex: 0, title: "全文", count });
+        }
+        return results;
     }
 
     function highlightLocalMatches() {
         removeHighlights();
         if (!currentSearchTerm || currentSearchMatches.length === 0) return;
-        
         const container = getTextViewContainer();
         if (!container) return;
-        
         const regex = new RegExp(`(${escapeRegex(currentSearchTerm)})`, 'gi');
         container.innerHTML = container.innerHTML.replace(regex, '<mark>$1</mark>');
     }
@@ -694,9 +639,6 @@
     function getTextViewContainer() {
         if (currentBookType === 'txt') {
             return document.querySelector('.txt-viewer div') || document.querySelector('.txt-viewer');
-        } else if (currentBookType === 'epub') {
-            // epub 的 iframe 内容我们无法直接修改，故跳过
-            return null;
         }
         return null;
     }
@@ -705,69 +647,173 @@
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
-    function highlightAndScrollToMatch(matchIndex) {
-        if (matchIndex < 0 || matchIndex >= currentSearchMatches.length) return;
-        currentActiveMatchIndex = matchIndex;
-        const container = getTextViewContainer();
-        if (!container) return;
-        const marks = container.querySelectorAll('mark');
-        if (marks.length > matchIndex) {
-            marks[matchIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // 添加视觉反馈
-            marks.forEach(m => m.style.background = '');
-            marks[matchIndex].style.background = '#f97316';
-        }
-    }
-
-    // 事件绑定：本地搜索结果点击
+    // 搜索结果点击处理
     localMatchList.addEventListener('click', (e) => {
         const li = e.target.closest('li');
-        if (!li) return;
-        const matchIndex = parseInt(li.dataset.matchIndex, 10);
-        if (!isNaN(matchIndex)) {
-            highlightAndScrollToMatch(matchIndex);
-        }
-    });
-
-    // 全文搜索结果点击
-    globalMatchList.addEventListener('click', async (e) => {
-        const li = e.target.closest('li');
-        if (!li) return;
-        if (currentBookType === 'epub') {
-            const cfi = li.dataset.cfi;
-            if (cfi && currentRendition) {
-                await currentRendition.display(cfi);
-                // 重新搜索以更新本地结果
-                setTimeout(() => performSearch(currentSearchTerm), 300);
-            }
-        } else if (currentBookType === 'txt') {
-            const chapterIdx = parseInt(li.dataset.chapterIndex, 10);
-            if (!isNaN(chapterIdx) && currentTxtChunks.length) {
-                if (chapterIdx !== currentChapterIndex) {
-                    searchPendingChapter = { chapterIndex: chapterIdx, matchIndex: 0 };
-                    await renderTxtChapter(chapterIdx);
-                } else {
-                    highlightAndScrollToMatch(0);
+        if (!li || !currentSearchMatches.length) return;
+        const index = Array.from(localMatchList.children).indexOf(li);
+        if (index >= 0 && currentSearchMatches[index]) {
+            const match = currentSearchMatches[index];
+            const container = getTextViewContainer();
+            if (container) {
+                const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+                let node, currentOffset = 0;
+                while ((node = walker.nextNode())) {
+                    const nodeLen = node.textContent.length;
+                    if (currentOffset + nodeLen > match.start) {
+                        const range = document.createRange();
+                        range.setStart(node, match.start - currentOffset);
+                        range.setEnd(node, match.end - currentOffset);
+                        range.startContainer.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        break;
+                    }
+                    currentOffset += nodeLen;
                 }
             }
         }
     });
 
-    // 搜索输入实时触发
-    let searchDebounceTimer;
+    globalMatchList.addEventListener('click', (e) => {
+        const li = e.target.closest('li');
+        if (!li) return;
+        if (currentBookType === 'epub') {
+            const cfi = li.dataset.cfi;
+            if (cfi && currentRendition) {
+                currentRendition.display(cfi).then(() => {
+                    setTimeout(() => performSearch(currentSearchTerm), 300);
+                });
+            }
+        } else if (currentBookType === 'txt') {
+            const chapterIdx = parseInt(li.dataset.chapterIndex, 10);
+            if (!isNaN(chapterIdx) && currentTxtChunks.length) {
+                if (chapterIdx !== currentChapterIndex) {
+                    renderTxtChapter(chapterIdx).then(() => {
+                        setTimeout(() => performSearch(currentSearchTerm), 300);
+                    });
+                } else {
+                    performSearch(currentSearchTerm);
+                }
+            }
+        }
+    });
+
+    // 搜索输入监听
     searchInput.addEventListener('input', () => {
         clearTimeout(searchDebounceTimer);
         const query = searchInput.value;
         searchDebounceTimer = setTimeout(() => performSearch(query), 300);
     });
 
-    searchBtn.addEventListener('click', openSearchPanel);
-    closeSearchBtn.addEventListener('click', closeSearchPanel);
-    // 点击搜索面板外部关闭 (简单处理：点击 readerContainer 其他区域不关闭，只有按钮关闭)
+    clearSearchBtn.addEventListener('click', () => {
+        clearSearch();
+    });
 
-    // 原有事件绑定
+    // 点击外部关闭搜索下拉
+    document.addEventListener('click', (e) => {
+        if (!searchBar.contains(e.target)) {
+            searchDropdown.style.display = 'none';
+        }
+    });
+    const searchBar = document.querySelector('.search-bar');
+
+    // ========== 底部章节导航悬浮显示 ==========
+    function isMobile() {
+        return window.innerWidth <= 680;
+    }
+    let navHideTimer = null;
+    function showChapterNav() {
+        if (isMobile() || !currentBookType) return;
+        chapterNavBar.classList.add('visible');
+        clearTimeout(navHideTimer);
+    }
+    function hideChapterNav() {
+        if (isMobile()) return;
+        navHideTimer = setTimeout(() => {
+            chapterNavBar.classList.remove('visible');
+        }, 800);
+    }
+
+    // 鼠标移动监听
+    readerContainer.addEventListener('mousemove', (e) => {
+        if (isMobile()) return;
+        const rect = readerContainer.getBoundingClientRect();
+        const distanceToBottom = rect.bottom - e.clientY;
+        if (distanceToBottom < 80) {
+            showChapterNav();
+        } else {
+            hideChapterNav();
+        }
+    });
+
+    readerContainer.addEventListener('mouseleave', hideChapterNav);
+    chapterNavBar.addEventListener('mouseenter', () => {
+        clearTimeout(navHideTimer);
+        chapterNavBar.classList.add('visible');
+    });
+    chapterNavBar.addEventListener('mouseleave', hideChapterNav);
+
+    // ========== URL面板切换 ==========
+    urlLoadBtn.addEventListener('click', () => {
+        urlPanel.style.display = urlPanel.style.display === 'none' ? 'flex' : 'none';
+        if (urlPanel.style.display === 'flex') bookUrlInput.focus();
+    });
+    closeUrlPanelBtn.addEventListener('click', () => urlPanel.style.display = 'none');
+    loadUrlBtn.addEventListener('click', () => loadFromUrl(bookUrlInput.value));
+
+    // ========== 移动端翻页与功能菜单 ==========
+    function mobileTapHandler(event) {
+        if (!isMobile() || !currentBookType) return;
+        const target = event.target;
+        if (target === tapLeft) {
+            // 上一页/上一章
+            if (currentBookType === 'epub') {
+                currentRendition.prev();
+            } else if (currentBookType === 'pdf') {
+                if (currentPdfPageNum > 1) renderPdfPage(currentPdfPageNum - 1, true);
+            } else if (currentBookType === 'txt') {
+                const containerHeight = readerContainer.clientHeight;
+                if (readerContainer.scrollTop <= 10 && smartChapterMode) {
+                    // 滚动到顶部，尝试上一章
+                    if (currentChapterIndex > 0) renderTxtChapter(currentChapterIndex - 1);
+                    else readerContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    readerContainer.scrollBy({ top: -containerHeight, behavior: 'smooth' });
+                }
+            }
+        } else if (target === tapRight) {
+            // 下一页/下一章
+            if (currentBookType === 'epub') {
+                currentRendition.next();
+            } else if (currentBookType === 'pdf') {
+                if (currentPdfPageNum < currentPdfTotalPages) renderPdfPage(currentPdfPageNum + 1, true);
+            } else if (currentBookType === 'txt') {
+                const containerHeight = readerContainer.clientHeight;
+                const maxScroll = readerArea.scrollHeight - containerHeight;
+                if (readerContainer.scrollTop >= maxScroll - 10 && smartChapterMode) {
+                    // 滚动到底部，尝试下一章
+                    if (currentChapterIndex < currentTxtChunks.length - 1) renderTxtChapter(currentChapterIndex + 1);
+                } else {
+                    readerContainer.scrollBy({ top: containerHeight, behavior: 'smooth' });
+                }
+            }
+        } else if (target === tapCenter) {
+            toolbar.classList.toggle('show');
+        }
+    }
+
+    tapLeft.addEventListener('click', mobileTapHandler);
+    tapRight.addEventListener('click', mobileTapHandler);
+    tapCenter.addEventListener('click', mobileTapHandler);
+
+    // 移动端工具栏显示时点击阅读区其他位置隐藏（避免冲突）
+    readerContainer.addEventListener('click', (e) => {
+        if (isMobile() && toolbar.classList.contains('show') && !e.target.closest('.toolbar') && e.target !== tapCenter) {
+            toolbar.classList.remove('show');
+        }
+    });
+
+    // ========== 其他事件绑定 ==========
     fileInput.addEventListener('change', e=>{ if(e.target.files.length) processFile(e.target.files[0]); fileInput.value=''; });
-    loadUrlBtn.addEventListener('click',()=>loadFromUrl(bookUrlInput.value));
     toggleSidebarBtn.addEventListener('click',()=>{ isSidebarVisible=!isSidebarVisible; sidebar.classList.toggle('hide',!isSidebarVisible); });
     themeToggleBtn.addEventListener('click',()=>setTheme(currentTheme==='light'?'dark':'light'));
     fontPlusBtn.addEventListener('click',()=>adjustFontSize(10));
@@ -779,7 +825,7 @@
     initDragAndDrop();
     loadGlobalConfig();
     
-    // 恢复上次书本
+    // 初始加载上次书本
     (async ()=>{
         const cfg=loadGlobalConfig();
         if(cfg.lastBookId){
@@ -791,4 +837,11 @@
             }
         }
     })();
+
+    // 监听窗口大小变化，动态调整移动端逻辑
+    window.addEventListener('resize', () => {
+        if (!isMobile()) {
+            toolbar.classList.remove('show');
+        }
+    });
 })();
