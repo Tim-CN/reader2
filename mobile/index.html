@@ -17,25 +17,23 @@
     </div>
 
     <div class="reader-container" id="readerContainer">
-        <!-- 翻页触发区域（仍保留左右点击，但变为整页切换） -->
         <div class="tap-area left" id="tapLeft"></div>
         <div class="tap-area center" id="tapCenter"></div>
         <div class="tap-area right" id="tapRight"></div>
-        
-        <!-- 页面滑动容器，用于实现翻页动画 -->
-        <div class="page-slider" id="pageSlider">
-            <div id="readerArea" class="reader-inner">
-                <div class="empty-state">
-                    <i class="fas fa-cloud-upload-alt" style="font-size:48px;opacity:0.4"></i>
-                    <p>点击屏幕中央<br>上传图书开始阅读</p>
-                </div>
+        <div id="readerArea" class="reader-inner">
+            <div class="empty-state">
+                <i class="fas fa-cloud-upload-alt" style="font-size:48px;opacity:0.4"></i>
+                <p>点击屏幕中央<br>上传图书开始阅读</p>
             </div>
         </div>
     </div>
 
-    <!-- 底部工具栏（保持不变） -->
     <div class="toolbar-overlay" id="toolbarOverlay" style="display:none;">
         <div class="toolbar-panel">
+            <div class="toolbar-header">
+                <span>功能菜单</span>
+                <button class="icon-btn" id="closeToolbarBtn"><i class="fas fa-times"></i></button>
+            </div>
             <div class="search-row">
                 <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
                 <button id="clearSearchBtn" class="icon-btn"><i class="fas fa-times"></i></button>
