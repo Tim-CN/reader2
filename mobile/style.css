@@ -7,7 +7,7 @@ body.dark .status-bar{background:rgba(30,34,48,0.6);color:#aaa}
 .reader-container{flex:1;position:relative;overflow:hidden;background:#fefefe;transition:background 0.2s}
 body.dark .reader-container{background:#11131f}
 .reader-inner{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;padding-bottom:20px}
-.tap-area{position:absolute;top:0;bottom:0;z-index:5}
+.tap-area{position:absolute;top:0;bottom:0;z-index:5;touch-action:pan-y}
 .tap-area.left{left:0;width:30%}
 .tap-area.center{left:30%;width:40%}
 .tap-area.right{left:70%;width:30%}
