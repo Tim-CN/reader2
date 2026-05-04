@@ -4,13 +4,9 @@ body.dark{background:#1a1e2a;color:#e2e8f0}
 .app{display:flex;flex-direction:column;height:100%}
 .status-bar{display:flex;justify-content:space-between;padding:8px 16px;font-size:0.7rem;color:#888;background:rgba(255,255,255,0.6);backdrop-filter:blur(8px);z-index:10}
 body.dark .status-bar{background:rgba(30,34,48,0.6);color:#aaa}
-.reader-container{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;padding-bottom:20px;background:#fefefe;transition:background 0.2s}
+.reader-container{flex:1;position:relative;overflow:hidden;background:#fefefe;transition:background 0.2s}
 body.dark .reader-container{background:#11131f}
-.empty-state{text-align:center;margin-top:40%;color:#888}
-.chapter-title{font-size:1.6rem;font-weight:700;margin-bottom:1rem;color:#1e293b;text-align:center}
-body.dark .chapter-title{color:#e2e8f0}
-.txt-viewer{font-family:'Georgia','Times New Roman',serif;line-height:1.6;white-space:pre-wrap;word-break:break-word}
-.pdf-page-canvas{display:block;margin:0 auto 16px;box-shadow:0 2px 8px rgba(0,0,0,0.1);border-radius:8px;background:white;width:100%;height:auto}
+.reader-inner{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;padding-bottom:20px}
 .toolbar-overlay{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-radius:24px 24px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,0.1);animation:slideUp 0.25s}
 .toolbar-panel{padding:16px 20px 20px}
 body.dark .toolbar-overlay{background:rgba(30,34,48,0.95)}
