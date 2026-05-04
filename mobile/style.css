@@ -5,11 +5,14 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+html, body {
+    height: 100%;
+    overflow: hidden;  /* 禁止整个页面滚动，让内部容器滚动 */
+}
+
 body {
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
     background: #f5f7fb;
-    height: 100vh;
-    overflow: hidden;
     transition: background 0.2s;
 }
 
@@ -21,12 +24,11 @@ body.dark {
 .app {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     width: 100%;
     overflow: hidden;
 }
 
-/* 双栏工具栏 */
 .toolbar {
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(12px);
@@ -117,7 +119,6 @@ body.dark .btn-icon:active {
     background: #2563eb;
 }
 
-/* 搜索行 */
 .search-row {
     margin-top: 8px;
 }
@@ -192,7 +193,6 @@ body.dark .search-results-dropdown {
     background: rgba(59, 130, 246, 0.15);
 }
 
-/* url 面板 */
 .url-panel {
     position: fixed;
     bottom: 20px;
@@ -234,14 +234,16 @@ body.dark .url-panel {
     cursor: pointer;
 }
 
-/* 主布局 */
+/* 主布局 — 关键修复点 */
 .main-layout {
     flex: 1;
-    overflow: hidden;
+    min-height: 0;          /* 允许 flex 子项缩小，防止溢出 */
+    display: flex;
     position: relative;
+    overflow: hidden;
 }
 
-/* 侧边栏抽屉 */
+/* 侧边栏抽屉 (绝对定位, 不影响主滚动) */
 .sidebar-overlay {
     position: fixed;
     top: 0;
@@ -324,9 +326,10 @@ body.dark .sidebar {
     font-weight: 500;
 }
 
-/* 阅读容器 - 修复滚动 */
+/* 阅读容器 — 滚动核心 */
 .reader-container {
     flex: 1;
+    min-height: 0;          /* 重要：允许收缩，使 overflow 生效 */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     background: #fefefe;
@@ -337,20 +340,18 @@ body.dark .reader-container {
     background: #11131f;
 }
 
-/* 内部内容区域，高度由内容撑开 */
+/* 内部内容区域，高度自动撑开 */
 .reader-area-inner {
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
     padding: 16px 12px;
-    min-height: 100%;
 }
 
-/* EPUB 渲染区域必须占据完整高度 */
+/* EPUB 渲染区域必须占据可滚动高度 */
 #readerArea {
-    height: 100%;
     width: 100%;
-    position: relative;
+    min-height: 100%;
 }
 
 /* PDF 视图 */
@@ -379,7 +380,7 @@ body.dark .reader-container {
     padding-bottom: 60px;
 }
 
-/* 底部章节导航 (移动端智能章节) */
+/* 底部章节导航 */
 .chapter-nav {
     position: fixed;
     bottom: 0;
@@ -426,13 +427,11 @@ body.dark .chapter-nav {
     text-overflow: ellipsis;
 }
 
-/* 智能按钮激活 */
 .btn-icon.smart-active {
     color: #3b82f6;
     background: rgba(59,130,246,0.15);
 }
 
-/* 高亮标记 */
 mark {
     background: #fde047;
     color: #1e293b;
@@ -468,7 +467,6 @@ body.dark mark {
     padding: 20px;
 }
 
-/* EPUB 内部 iframe 自适应 */
 .epub-container iframe {
     width: 100%;
     height: 100%;
@@ -476,9 +474,8 @@ body.dark mark {
     background: inherit;
 }
 
-/* 确保滚动条在移动端顺滑 */
 .reader-container::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
     background: transparent;
 }
 
