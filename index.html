@@ -13,25 +13,49 @@
 </head>
 <body>
 <div class="app">
-    <div class="toolbar">
+    <!-- 顶部工具栏 -->
+    <div class="toolbar" id="toolbar">
         <div class="logo"><i class="fas fa-book-open"></i>Zero. Zip. Xplore.</div>
         <label class="file-label">
             <i class="fas fa-upload"></i><span> 上传图书</span>
             <input type="file" id="fileInput" accept=".epub,.pdf,.txt" style="display: none;">
         </label>
-        <div class="url-input">
-            <input type="text" id="bookUrl" placeholder="图书URL (支持 .epub/.pdf/.txt)" value="">
-            <button id="loadUrlBtn"><i class="fas fa-link"></i> 加载</button>
+        
+        <!-- 常驻搜索框 -->
+        <div class="search-bar" id="searchBar">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
+            <button id="clearSearchBtn" class="btn-icon" style="display:none;"><i class="fas fa-times"></i></button>
+            <div class="search-results-dropdown" id="searchDropdown" style="display:none;">
+                <div class="search-section" id="localResults">
+                    <h4>📌 本页匹配</h4>
+                    <ul id="localMatchList"></ul>
+                </div>
+                <div class="search-section" id="globalResults">
+                    <h4>🌐 全文匹配</h4>
+                    <ul id="globalMatchList"></ul>
+                </div>
+            </div>
         </div>
-        <div class="ctrl-group">
+
+        <!-- URL加载按钮（弹出输入框） -->
+        <button class="btn-icon" id="urlLoadBtn" title="打开远程图书"><i class="fas fa-link"></i></button>
+        <!-- URL输入面板（默认隐藏） -->
+        <div class="url-panel" id="urlPanel" style="display:none;">
+            <input type="text" id="bookUrl" placeholder="图书URL (.epub/.pdf/.txt)">
+            <button id="loadUrlBtn">加载</button>
+            <button id="closeUrlPanelBtn"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="ctrl-group" id="ctrlGroup">
             <button class="btn-icon" id="fontMinusBtn" title="减小字号"><i class="fas fa-font"></i><span>-</span></button>
             <button class="btn-icon" id="fontPlusBtn" title="增大字号"><i class="fas fa-font"></i><span>+</span></button>
             <button class="btn-icon" id="themeToggleBtn" title="日夜模式"><i class="fas fa-moon"></i></button>
-            <button class="btn-icon" id="smartChapterBtn" title="智能章节(TXT)"><i class="fas fa-code-branch"></i><span> 智能章</span></button>
-            <button class="btn-icon" id="searchBtn" title="全文搜索"><i class="fas fa-search"></i></button>
+            <button class="btn-icon" id="smartChapterBtn" title="智能章节(TXT)"><i class="fas fa-code-branch"></i></button>
             <button class="btn-icon" id="toggleSidebarBtn" title="目录"><i class="fas fa-list-ul"></i></button>
         </div>
     </div>
+
     <div class="main-layout">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header"><i class="fas fa-table-of-contents"></i> 目录 / 章节</div>
@@ -39,24 +63,13 @@
                 <li style="padding: 20px; text-align: center; color: gray;">暂无书籍，上传后显示目录</li>
             </ul>
         </aside>
+
         <div class="reader-container" id="readerContainer">
-            <!-- 搜索面板 -->
-            <div id="searchPanel" class="search-panel" style="display: none;">
-                <div class="search-bar">
-                    <input type="text" id="searchInput" placeholder="输入关键词搜索..." autocomplete="off">
-                    <button id="closeSearchBtn" class="btn-icon"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="search-results">
-                    <div class="search-section" id="localResults">
-                        <h4>📌 本页匹配</h4>
-                        <ul id="localMatchList"></ul>
-                    </div>
-                    <div class="search-section" id="globalResults">
-                        <h4>🌐 全文匹配</h4>
-                        <ul id="globalMatchList"></ul>
-                    </div>
-                </div>
-            </div>
+            <!-- 移动端左右翻页区域 -->
+            <div class="mobile-tap-area left" id="tapLeft"></div>
+            <div class="mobile-tap-area center" id="tapCenter"></div>
+            <div class="mobile-tap-area right" id="tapRight"></div>
+
             <div id="readerArea" class="reader-area-inner">
                 <div class="empty-state">
                     <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
@@ -66,12 +79,15 @@
         </div>
     </div>
 </div>
-<div id="loadingToast" class="loading-overlay" style="display: none;">加载中...</div>
-<div id="chapterNavBar" class="chapter-nav" style="display: none;">
-    <button id="prevChapterBtn"><i class="fas fa-chevron-left"></i> 上一章</button>
-    <span id="chapterInfo">章节导航</span>
-    <button id="nextChapterBtn">下一章 <i class="fas fa-chevron-right"></i></button>
+
+<!-- 底部悬浮章节导航（非移动端） -->
+<div id="chapterNavBar" class="chapter-nav">
+    <button id="prevChapterBtn"><i class="fas fa-chevron-left"></i></button>
+    <span id="chapterTitle">章节标题</span>
+    <button id="nextChapterBtn"><i class="fas fa-chevron-right"></i></button>
 </div>
+
+<div id="loadingToast" class="loading-overlay" style="display: none;">加载中...</div>
 
 <!-- 外部脚本 -->
 <script src="script.js"></script>
