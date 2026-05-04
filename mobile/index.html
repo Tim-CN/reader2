@@ -2,143 +2,96 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>ZZX · 移动阅读</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>ZZX · 电子书阅读器</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        // 确保在移动环境下不重定向（本身已在移动子目录）
+        if(window.location.pathname !== '/mobile/' && !/mobile/i.test(window.location.pathname)){
+            // 不做额外跳转, 保持稳定
+        }
     </script>
 </head>
 <body>
-<div class="mobile-app">
-    <!-- 顶部状态栏（仅显示书名和简单操作） -->
-    <div class="mobile-header" id="mobileHeader">
-        <div class="header-left">
-            <button class="header-btn" id="menuToggleBtn"><i class="fas fa-bars"></i></button>
-        </div>
-        <div class="book-title" id="bookTitle">ZZX Reader</div>
-        <div class="header-right">
-            <button class="header-btn" id="searchHeaderBtn"><i class="fas fa-search"></i></button>
-            <button class="header-btn" id="moreMenuBtn"><i class="fas fa-ellipsis-v"></i></button>
-        </div>
-    </div>
-
-    <!-- 阅读区域主体，用于渲染EPUB/PDF/TXT -->
-    <div class="reader-container" id="readerContainer">
-        <div id="readerArea" class="reader-area-inner">
-            <div class="empty-state">
-                <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
-                <p style="margin-top: 16px;">上传电子书，开始阅读</p>
-                <label class="upload-btn" id="uploadBtnMobile">
-                    <i class="fas fa-plus-circle"></i> 选择书籍
-                    <input type="file" id="fileInputMobile" accept=".epub,.pdf,.txt" style="display: none;">
+<div class="app">
+    <!-- 移动端双行工具栏：主要操作区 + 搜索区 -->
+    <div class="toolbar">
+        <div class="toolbar-row">
+            <button class="btn-icon" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+            <div class="logo">ZZX·阅</div>
+            <div class="toolbar-actions">
+                <label class="mobile-file-label">
+                    <i class="fas fa-upload"></i>
+                    <input type="file" id="fileInput" accept=".epub,.pdf,.txt" style="display: none;">
                 </label>
+                <button class="btn-icon" id="urlLoadBtn"><i class="fas fa-link"></i></button>
+                <button class="btn-icon" id="themeToggleBtn"><i class="fas fa-moon"></i></button>
+                <div class="font-group">
+                    <button class="btn-icon" id="fontMinusBtn"><i class="fas fa-font"></i><span class="font-sign">−</span></button>
+                    <button class="btn-icon" id="fontPlusBtn"><i class="fas fa-font"></i><span class="font-sign">+</span></button>
+                </div>
+                <button class="btn-icon" id="smartChapterBtn" title="智能章节(TXT)"><i class="fas fa-code-branch"></i></button>
+            </div>
+        </div>
+        <div class="search-row" id="searchBarWrapper">
+            <div class="search-bar" id="searchBar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
+                <button id="clearSearchBtn" class="btn-icon" style="display:none;"><i class="fas fa-times"></i></button>
+                <div class="search-results-dropdown" id="searchDropdown" style="display:none;">
+                    <div class="search-section local">
+                        <h4>📖 本页匹配</h4>
+                        <ul id="localMatchList"></ul>
+                    </div>
+                    <div class="search-section global">
+                        <h4>🌐 全文匹配</h4>
+                        <ul id="globalMatchList"></ul>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 底部操作栏 (默认隐藏，点击屏幕中央唤出) -->
-    <div class="bottom-action-bar" id="bottomActionBar">
-        <div class="action-grid">
-            <div class="action-item" id="actionUpload">
-                <i class="fas fa-upload"></i><span>上传</span>
+    <!-- 远程图书浮层面板 -->
+    <div class="url-panel" id="urlPanel" style="display:none;">
+        <input type="text" id="bookUrl" placeholder="图书URL (.epub/.pdf/.txt)">
+        <button id="loadUrlBtn">加载</button>
+        <button id="closeUrlPanelBtn"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="main-layout">
+        <!-- 移动抽屉侧边栏 (独立遮罩 + 菜单) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" style="display: none;"></div>
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-table-of-contents"></i> 目录 / 章节
+                <button class="close-sidebar-btn" id="closeSidebarBtn"><i class="fas fa-times"></i></button>
             </div>
-            <div class="action-item" id="actionToc">
-                <i class="fas fa-list-ul"></i><span>目录</span>
-            </div>
-            <div class="action-item" id="actionTheme">
-                <i class="fas fa-moon"></i><span>主题</span>
-            </div>
-            <div class="action-item" id="actionFont">
-                <i class="fas fa-font"></i><span>字号</span>
-            </div>
-            <div class="action-item" id="actionSearch">
-                <i class="fas fa-search"></i><span>搜索</span>
-            </div>
-            <div class="action-item" id="actionNav">
-                <i class="fas fa-book-open"></i><span>导航</span>
-            </div>
-        </div>
-        <div class="font-panel" id="fontPanel" style="display: none;">
-            <div class="font-control">
-                <button class="font-minus"><i class="fas fa-minus"></i></button>
-                <span class="font-size-value">100%</span>
-                <button class="font-plus"><i class="fas fa-plus"></i></button>
-            </div>
-            <div class="line-height-control">
-                <span>行距</span>
-                <input type="range" id="lineHeightSlider" min="1.2" max="2.4" step="0.05" value="1.7">
-                <span id="lineHeightValue">1.7</span>
+            <ul class="toc-list" id="tocList">
+                <li style="padding: 20px; text-align: center; color: gray;">暂无书籍，上传后显示目录</li>
+            </ul>
+        </aside>
+
+        <div class="reader-container" id="readerContainer">
+            <div id="readerArea" class="reader-area-inner">
+                <div class="empty-state">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
+                    <p style="margin-top: 16px;">支持 EPUB / PDF / TXT<br>点击上传或输入链接</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 侧滑抽屉菜单 (目录/章节) -->
-    <div class="drawer-menu" id="drawerMenu">
-        <div class="drawer-header">
-            <span><i class="fas fa-table-of-contents"></i> 目录</span>
-            <button class="close-drawer" id="closeDrawer"><i class="fas fa-times"></i></button>
-        </div>
-        <ul class="toc-list" id="tocListMobile">
-            <li style="padding: 20px; text-align: center; color: gray;">暂无书籍</li>
-        </ul>
+    <!-- 底部章节导航条（移动常驻/智能切换样式） -->
+    <div id="chapterNavBar" class="chapter-nav">
+        <button id="prevChapterBtn"><i class="fas fa-chevron-left"></i></button>
+        <span id="chapterTitle">章节标题</span>
+        <button id="nextChapterBtn"><i class="fas fa-chevron-right"></i></button>
     </div>
-    <div class="drawer-overlay" id="drawerOverlay"></div>
-
-    <!-- 搜索面板 (全屏浮层) -->
-    <div class="search-panel" id="searchPanel" style="display: none;">
-        <div class="search-header">
-            <input type="text" id="mobileSearchInput" placeholder="搜索全书内容..." autocomplete="off">
-            <button id="closeSearchPanel"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="search-results" id="mobileSearchResults">
-            <div class="results-section">
-                <h4>📖 搜索结果</h4>
-                <ul id="searchResultList"></ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- 更多菜单浮层 -->
-    <div class="more-menu" id="moreMenu" style="display: none;">
-        <div class="more-menu-item" id="menuUrlImport">
-            <i class="fas fa-link"></i> 导入URL
-        </div>
-        <div class="more-menu-item" id="menuSmartChapter">
-            <i class="fas fa-code-branch"></i> 智能章节
-        </div>
-        <div class="more-menu-item" id="menuProgress">
-            <i class="fas fa-chart-line"></i> 阅读进度
-        </div>
-    </div>
-
-    <!-- URL 导入弹窗 -->
-    <div class="url-modal" id="urlModal" style="display: none;">
-        <div class="url-modal-content">
-            <h3>从URL导入</h3>
-            <input type="text" id="bookUrlMobile" placeholder="图书URL (.epub/.pdf/.txt)">
-            <div class="url-modal-buttons">
-                <button id="confirmUrlBtn">加载</button>
-                <button id="cancelUrlBtn">取消</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 章节导航悬浮条 (仅TXT智能模式显示) -->
-    <div id="chapterNavBarMobile" class="chapter-nav-mobile" style="display: none;">
-        <button id="prevChapterMobile"><i class="fas fa-chevron-left"></i></button>
-        <span id="chapterTitleMobile">章节标题</span>
-        <button id="nextChapterMobile"><i class="fas fa-chevron-right"></i></button>
-    </div>
-
-    <div id="loadingToast" class="loading-toast" style="display: none;">加载中...</div>
-</div>
-
-<script src="script.js"></script>
+    <div id="loadingToast" class="loading-overlay" style="display: none;">加载中...</div>
+    <script src="script.js"></script>
 </body>
 </html>
