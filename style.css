@@ -1,9 +1,8 @@
-/* style.css - 完整优化样式（已修复基础功能） */
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,'Segoe UI','Roboto','Noto Sans',sans-serif;background:#f5f7fb;height:100vh;overflow:hidden;transition:background 0.2s}
 body.dark{background:#1a1e2a;color:#e2e8f0}
 .app{display:flex;flex-direction:column;height:100vh;width:100%;overflow:hidden}
-.toolbar{background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,0.08);padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;z-index:120;box-shadow:0 1px 2px rgba(0,0,0,0.02);transition:transform 0.3s}
+.toolbar{background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,0.08);padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;z-index:120;box-shadow:0 1px 2px rgba(0,0,0,0.02)}
 body.dark .toolbar{background:rgba(30,34,48,0.9);border-bottom-color:rgba(255,255,255,0.08)}
 .logo{font-weight:600;font-size:1.2rem;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:8px}
 .btn-icon{background:transparent;border:none;font-size:1.2rem;cursor:pointer;padding:8px 12px;border-radius:40px;transition:0.2s;color:#334155;display:inline-flex;align-items:center;gap:8px;font-weight:500}
@@ -58,28 +57,8 @@ body.dark .chapter-nav button{color:#cbd5e1}
 .chapter-nav span{font-weight:500;font-size:0.95rem;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%}
 body.dark .chapter-nav span{color:#e2e8f0}
 
-.mobile-tap-area{display:none;position:absolute;top:0;bottom:0;z-index:50;pointer-events:auto}
-.mobile-tap-area.left{left:0;width:30%}
-.mobile-tap-area.center{left:30%;width:40%}
-.mobile-tap-area.right{left:70%;width:30%}
-
-.loading-overlay{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 20px;border-radius:40px;font-size:0.85rem;z-index:100;pointer-events:none;backdrop-filter:blur(8px)}
-.empty-state{text-align:center;margin-top:20vh;color:#888}
-
 .btn-icon.smart-active{color:#3b82f6}
-
 mark{background:#fef08a;color:#1e293b;border-radius:2px;padding:0 2px}
 body.dark mark{background:#b45309;color:#fef9c3}
-
-@media(max-width:680px){
-    .toolbar{position:fixed;bottom:0;left:0;right:0;transform:translateY(100%);border-radius:24px 24px 0 0;padding:16px 12px;flex-wrap:wrap;justify-content:center;box-shadow:0 -4px 12px rgba(0,0,0,0.1);z-index:130;transition:transform 0.3s;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px)}
-    body.dark .toolbar{background:rgba(30,34,48,0.95)}
-    .toolbar.show{transform:translateY(0)}
-    .logo,.file-label span{display:none}
-    .search-bar{min-width:120px;order:-1;flex:1 1 auto;margin-bottom:8px}
-    .ctrl-group{width:100%;justify-content:space-around}
-    .mobile-tap-area{display:block}
-    .reader-container{padding:8px}
-    .sidebar{width:260px;position:fixed;top:0;bottom:0;z-index:140}
-    .chapter-nav{display:none}
-}
+.loading-overlay{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 20px;border-radius:40px;font-size:0.85rem;z-index:100;pointer-events:none;backdrop-filter:blur(8px)}
+.empty-state{text-align:center;margin-top:20vh;color:#888}
