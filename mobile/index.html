@@ -15,7 +15,6 @@
         <span id="bookTitle">未打开书籍</span>
         <span id="batteryTime">100% · 12:00</span>
     </div>
-
     <div class="reader-container" id="readerContainer">
         <div class="tap-area left" id="tapLeft"></div>
         <div class="tap-area center" id="tapCenter"></div>
@@ -27,16 +26,11 @@
             </div>
         </div>
     </div>
-
     <div class="toolbar-overlay" id="toolbarOverlay" style="display:none;">
         <div class="toolbar-panel">
-            <div class="toolbar-header">
-                <span>功能菜单</span>
-                <button class="icon-btn" id="closeToolbarBtn"><i class="fas fa-times"></i></button>
-            </div>
             <div class="search-row">
                 <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
-                <button id="clearSearchBtn" class="icon-btn"><i class="fas fa-times"></i></button>
+                <button id="clearSearchBtn" class="icon-btn search-clear-btn"><i class="fas fa-times"></i></button>
                 <div class="search-dropdown" id="searchDropdown" style="display:none;">
                     <div class="search-section local"><h4>本页</h4><ul id="localMatchList"></ul></div>
                     <div class="search-section global"><h4>全文</h4><ul id="globalMatchList"></ul></div>
@@ -53,7 +47,6 @@
             </div>
         </div>
     </div>
-
     <div class="sidebar-mask" id="sidebarMask" style="display:none;"></div>
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -64,10 +57,8 @@
             <li class="empty-toc">暂无书籍</li>
         </ul>
     </div>
-
     <input type="file" id="fileInput" accept=".epub,.pdf,.txt" style="display:none;">
 </div>
-
 <script src="script.js"></script>
 </body>
 </html>
