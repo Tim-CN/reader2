@@ -550,4 +550,7 @@
             }
         }
     })();
+
+    // 暴露 processFile 到全局
+    window.processFile = processFile;
 })();
