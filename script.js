@@ -759,4 +759,7 @@
             }
         }
     })();
+
+    // 暴露 processFile 到全局，供其他模块（如未来的云端功能）使用
+    window.processFile = processFile;
 })();
