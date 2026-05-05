@@ -483,3 +483,27 @@ body.dark mark {
     background: rgba(0,0,0,0.2);
     border-radius: 4px;
 }
+
+/* 用户区域样式 */
+.user-area {
+    margin-left: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.user-area button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 6px 8px;
+    border-radius: 32px;
+}
+
+.user-area button:active {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+body.dark .user-area button:active {
+    background: rgba(255, 255, 255, 0.2);
+}
