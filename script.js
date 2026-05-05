@@ -1155,13 +1155,8 @@
         showLoading(true, '上传中...');
         const fileExt = file.name.split('.').pop().toLowerCase();
         // 将文件名中除了字母、数字、中文、下划线、连字符、点号之外的所有字符替换为下划线
-        // 提取文件扩展名
-        const fileExt = file.name.split('.').pop();
-        // 生成纯 ASCII 的时间戳文件名（完全规避中文字符问题）
-        const asciiFileName = `${Date.now()}.${fileExt}`;
-        const filePath = `user-uploads/${currentUser.id}/${asciiFileName}`;
-        // 可选：在数据库记录中保存原始文件名（用于前端展示）
-        const originalName = file.name;
+        const safeFileName = file.name.replace(/[^\w\u4e00-\u9fff.\-]/g, '_');
+        const filePath = `user-uploads/${currentUser.id}/${Date.now()}_${safeFileName}`;
         const { error: uploadError } = await supabase.storage
             .from('book-files')
             .upload(filePath, file);
