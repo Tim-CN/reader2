@@ -1153,10 +1153,12 @@
             return;
         }
         showLoading(true, '上传中...');
+        // 提取扩展名（统一小写）
         const fileExt = file.name.split('.').pop().toLowerCase();
-        // 将文件名中除了字母、数字、中文、下划线、连字符、点号之外的所有字符替换为下划线
-        const safeFileName = file.name.replace(/[^\w\u4e00-\u9fff.\-]/g, '_');
-        const filePath = `user-uploads/${currentUser.id}/${Date.now()}_${safeFileName}`;
+        // 生成纯 ASCII 文件名，避免中文字符导致存储 400 错误
+        const asciiFileName = `${Date.now()}.${fileExt}`;
+        const filePath = `user-uploads/${currentUser.id}/${asciiFileName}`;
+
         const { error: uploadError } = await supabase.storage
             .from('book-files')
             .upload(filePath, file);
@@ -1165,8 +1167,10 @@
             showLoading(false);
             return;
         }
+        // 书名的处理：使用原始文件名（去掉扩展名）作为标题，可保留中文
+        const bookTitle = file.name.replace(/\.[^.]+$/, '');
         const { data: bookRecord, error: insertError } = await supabase.from('books').insert({
-            title: file.name.replace(/\.[^.]+$/, ''),
+            title: bookTitle,
             file_path: filePath,
             file_type: fileExt,
             file_size: file.size,
