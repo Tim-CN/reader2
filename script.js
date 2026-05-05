@@ -1154,7 +1154,9 @@
         }
         showLoading(true, '上传中...');
         const fileExt = file.name.split('.').pop().toLowerCase();
-        const filePath = `user-uploads/${currentUser.id}/${Date.now()}_${file.name}`;
+        // 将文件名中除了字母、数字、中文、下划线、连字符、点号之外的所有字符替换为下划线
+        const safeFileName = file.name.replace(/[^\w\u4e00-\u9fff.\-]/g, '_');
+        const filePath = `user-uploads/${currentUser.id}/${Date.now()}_${safeFileName}`;
         const { error: uploadError } = await supabase.storage
             .from('book-files')
             .upload(filePath, file);
