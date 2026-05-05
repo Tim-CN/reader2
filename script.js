@@ -949,8 +949,8 @@
             alert('Supabase SDK 加载失败，请刷新');
             return;
         }
-        supabase = window.supabase;
-        supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // ✅ 用 createClient 的返回值覆盖 supabase 变量
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
     function updateAuthUI() {
