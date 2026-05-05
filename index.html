@@ -2,66 +2,72 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>简阅 · by Tim-CN</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script>
-        // 移动端跳转（若非移动端则继续）
-        (function(){
-            if(/Mobi|Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent) || window.innerWidth <= 680){
-                window.location.replace('mobile/');
-            }
-        })();
-    </script>
 </head>
 <body>
 <div class="app">
+    <!-- 移动端双行工具栏：主要操作区 + 搜索区 -->
     <div class="toolbar">
-        <div class="logo"><i class="fas fa-book-open"></i>简阅</div>
-        <label class="file-label">
-            <i class="fas fa-upload"></i><span> 上传图书</span>
-            <input type="file" id="fileInput" accept=".epub,.pdf,.txt" style="display: none;">
-        </label>
-        <div class="search-bar" id="searchBar">
-            <i class="fas fa-search"></i>
-            <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
-            <button id="clearSearchBtn" class="btn-icon" style="display:none;"><i class="fas fa-times"></i></button>
-            <div class="search-results-dropdown" id="searchDropdown" style="display:none;">
-                <div class="search-section local">
-                    <h4>📌 本页匹配</h4>
-                    <ul id="localMatchList"></ul>
+        <div class="toolbar-row">
+            <button class="btn-icon" id="mobileMenuBtn"><i class="fas fa-bars"></i></button>
+            <div class="logo">简阅</div>
+            <div class="toolbar-actions">
+                <label class="mobile-file-label">
+                    <i class="fas fa-upload"></i>
+                    <input type="file" id="fileInput" accept=".epub,.pdf,.txt" style="display: none;">
+                </label>
+                <button class="btn-icon" id="urlLoadBtn"><i class="fas fa-link"></i></button>
+                <button class="btn-icon" id="themeToggleBtn"><i class="fas fa-moon"></i></button>
+                <div class="font-group">
+                    <button class="btn-icon" id="fontMinusBtn"><i class="fas fa-font"></i><span class="font-sign">−</span></button>
+                    <button class="btn-icon" id="fontPlusBtn"><i class="fas fa-font"></i><span class="font-sign">+</span></button>
                 </div>
-                <div class="search-section global">
-                    <h4>🌐 全文匹配</h4>
-                    <ul id="globalMatchList"></ul>
+                <button class="btn-icon" id="smartChapterBtn" title="智能章节(TXT)"><i class="fas fa-code-branch"></i></button>
+            </div>
+            <!-- 用户区域（移动端） -->
+            <div class="user-area" id="userArea">
+                <button id="authBtn" class="btn-icon"><i class="fas fa-user"></i></button>
+            </div>
+        </div>
+        <div class="search-row" id="searchBarWrapper">
+            <div class="search-bar" id="searchBar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="搜索全书..." autocomplete="off">
+                <button id="clearSearchBtn" class="btn-icon" style="display:none;"><i class="fas fa-times"></i></button>
+                <div class="search-results-dropdown" id="searchDropdown" style="display:none;">
+                    <div class="search-section local">
+                        <h4>📖 本页匹配</h4>
+                        <ul id="localMatchList"></ul>
+                    </div>
+                    <div class="search-section global">
+                        <h4>🌐 全文匹配</h4>
+                        <ul id="globalMatchList"></ul>
+                    </div>
                 </div>
             </div>
         </div>
-        <button class="btn-icon" id="urlLoadBtn" title="打开远程图书"><i class="fas fa-link"></i></button>
-        <div class="url-panel" id="urlPanel" style="display:none;">
-            <input type="text" id="bookUrl" placeholder="图书URL (.epub/.pdf/.txt)">
-            <button id="loadUrlBtn">加载</button>
-            <button id="closeUrlPanelBtn"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="ctrl-group">
-            <button class="btn-icon" id="fontMinusBtn" title="减小字号"><i class="fas fa-font"></i><span>-</span></button>
-            <button class="btn-icon" id="fontPlusBtn" title="增大字号"><i class="fas fa-font"></i><span>+</span></button>
-            <button class="btn-icon" id="themeToggleBtn" title="日夜模式"><i class="fas fa-moon"></i></button>
-            <button class="btn-icon" id="smartChapterBtn" title="智能章节(TXT)"><i class="fas fa-code-branch"></i></button>
-            <button class="btn-icon" id="toggleSidebarBtn" title="目录"><i class="fas fa-list-ul"></i></button>
-        </div>
-        <!-- 用户区域 -->
-        <div class="user-area" id="userArea">
-            <button id="authBtn" class="btn-icon"><i class="fas fa-user"></i> 登录</button>
-        </div>
+    </div>
+
+    <!-- 远程图书浮层面板 -->
+    <div class="url-panel" id="urlPanel" style="display:none;">
+        <input type="text" id="bookUrl" placeholder="图书URL (.epub/.pdf/.txt)">
+        <button id="loadUrlBtn">加载</button>
+        <button id="closeUrlPanelBtn"><i class="fas fa-times"></i></button>
     </div>
 
     <div class="main-layout">
+        <!-- 移动抽屉侧边栏 (独立遮罩 + 菜单) -->
+        <div class="sidebar-overlay" id="sidebarOverlay" style="display: none;"></div>
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header"><i class="fas fa-table-of-contents"></i> 目录 / 章节</div>
+            <div class="sidebar-header">
+                <i class="fas fa-table-of-contents"></i> 目录 / 章节
+                <button class="close-sidebar-btn" id="closeSidebarBtn"><i class="fas fa-times"></i></button>
+            </div>
             <ul class="toc-list" id="tocList">
                 <li style="padding: 20px; text-align: center; color: gray;">暂无书籍，上传后显示目录</li>
             </ul>
@@ -71,97 +77,97 @@
             <div id="readerArea" class="reader-area-inner">
                 <div class="empty-state">
                     <i class="fas fa-cloud-upload-alt" style="font-size: 48px; opacity: 0.5;"></i>
-                    <p style="margin-top: 16px;">支持 EPUB / PDF / TXT<br>拖拽或点击上传，大文本智能分章</p>
+                    <p style="margin-top: 16px;">支持 EPUB / PDF / TXT<br>点击上传或输入链接</p>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div id="chapterNavBar" class="chapter-nav">
-    <button id="prevChapterBtn"><i class="fas fa-chevron-left"></i></button>
-    <span id="chapterTitle">章节标题</span>
-    <button id="nextChapterBtn"><i class="fas fa-chevron-right"></i></button>
-</div>
-<div id="loadingToast" class="loading-overlay" style="display: none;">加载中...</div>
+    <!-- 底部章节导航条 -->
+    <div id="chapterNavBar" class="chapter-nav">
+        <button id="prevChapterBtn"><i class="fas fa-chevron-left"></i></button>
+        <span id="chapterTitle">章节标题</span>
+        <button id="nextChapterBtn"><i class="fas fa-chevron-right"></i></button>
+    </div>
+    <div id="loadingToast" class="loading-overlay" style="display: none;">加载中...</div>
 
-<!-- Supabase SDK 及认证逻辑 -->
-<script src="https://jaceishrgswqigzworyr.supabase.co"></script>
-<script>
-    // 请替换为你的 Supabase 项目实际值
-    const SUPABASE_URL = 'https://jaceishrgswqigzworyr.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_siryMsxclwiR3CcbsRKD7A_p2NOZZFF';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <!-- Supabase SDK 及认证逻辑 -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // 请替换为你的 Supabase 项目实际值
+        const SUPABASE_URL = 'https://jaceishrgswqigzworyr.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_siryMsxclwiR3CcbsRKD7A_p2NOZZFF';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentUser = null;
+        let currentUser = null;
 
-    function updateAuthUI() {
-        const userArea = document.getElementById('userArea');
-        if (!userArea) return;
-        if (currentUser) {
-            userArea.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 0.8rem;">${currentUser.email}</span>
-                    <button id="logoutBtn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
-                </div>
-            `;
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', async () => {
-                    await supabase.auth.signOut();
-                    currentUser = null;
-                    updateAuthUI();
-                    alert('已退出登录');
-                });
-            }
-        } else {
-            userArea.innerHTML = `<button id="authBtn" class="btn-icon"><i class="fas fa-user"></i> 登录</button>`;
-            const authBtn = document.getElementById('authBtn');
-            if (authBtn) {
-                authBtn.addEventListener('click', showAuthDialog);
-            }
-        }
-    }
-
-    function showAuthDialog() {
-        const isSignUp = confirm('没有账号？点“确定”注册，点“取消”登录。');
-        const email = prompt('请输入邮箱：');
-        if (!email) return;
-        const password = prompt('请输入密码（至少6位）：');
-        if (!password || password.length < 6) {
-            alert('密码长度不能小于6位');
-            return;
-        }
-
-        if (isSignUp) {
-            supabase.auth.signUp({ email, password })
-                .then(({ error }) => {
-                    if (error) alert('注册失败：' + error.message);
-                    else alert('注册成功！请查收验证邮件（如果启用了邮箱验证）');
-                });
-        } else {
-            supabase.auth.signInWithPassword({ email, password })
-                .then(({ data, error }) => {
-                    if (error) alert('登录失败：' + error.message);
-                    else {
-                        currentUser = data.user;
+        function updateAuthUI() {
+            const userArea = document.getElementById('userArea');
+            if (!userArea) return;
+            if (currentUser) {
+                userArea.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 0.7rem;">${currentUser.email}</span>
+                        <button id="logoutBtn" class="btn-icon"><i class="fas fa-sign-out-alt"></i></button>
+                    </div>
+                `;
+                const logoutBtn = document.getElementById('logoutBtn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', async () => {
+                        await supabase.auth.signOut();
+                        currentUser = null;
                         updateAuthUI();
-                        alert('登录成功');
-                    }
-                });
+                        alert('已退出登录');
+                    });
+                }
+            } else {
+                userArea.innerHTML = `<button id="authBtn" class="btn-icon"><i class="fas fa-user"></i></button>`;
+                const authBtn = document.getElementById('authBtn');
+                if (authBtn) {
+                    authBtn.addEventListener('click', showAuthDialog);
+                }
+            }
         }
-    }
 
-    supabase.auth.onAuthStateChange((event, session) => {
-        currentUser = session?.user || null;
-        updateAuthUI();
-    });
+        function showAuthDialog() {
+            const isSignUp = confirm('没有账号？点“确定”注册，点“取消”登录。');
+            const email = prompt('请输入邮箱：');
+            if (!email) return;
+            const password = prompt('请输入密码（至少6位）：');
+            if (!password || password.length < 6) {
+                alert('密码长度不能小于6位');
+                return;
+            }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        currentUser = session?.user || null;
-        updateAuthUI();
-    });
-</script>
-<script src="script.js"></script>
+            if (isSignUp) {
+                supabase.auth.signUp({ email, password })
+                    .then(({ error }) => {
+                        if (error) alert('注册失败：' + error.message);
+                        else alert('注册成功！请查收验证邮件（如果启用了邮箱验证）');
+                    });
+            } else {
+                supabase.auth.signInWithPassword({ email, password })
+                    .then(({ data, error }) => {
+                        if (error) alert('登录失败：' + error.message);
+                        else {
+                            currentUser = data.user;
+                            updateAuthUI();
+                            alert('登录成功');
+                        }
+                    });
+            }
+        }
+
+        supabase.auth.onAuthStateChange((event, session) => {
+            currentUser = session?.user || null;
+            updateAuthUI();
+        });
+
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            currentUser = session?.user || null;
+            updateAuthUI();
+        });
+    </script>
+    <script src="script.js"></script>
 </body>
 </html>
