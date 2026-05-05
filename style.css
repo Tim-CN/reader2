@@ -63,27 +63,24 @@ body.dark mark{background:#b45309;color:#fef9c3}
 .loading-overlay{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 20px;border-radius:40px;font-size:0.85rem;z-index:100;pointer-events:none;backdrop-filter:blur(8px)}
 .empty-state{text-align:center;margin-top:20vh;color:#888}
 
-/* 用户区域样式 */
-.user-area {
-    margin-left: 8px;
-    display: flex;
-    align-items: center;
-}
+/* 用户区域 */
+.user-area { margin-left: 8px; display: flex; align-items: center; }
+.user-area button { background: transparent; border: none; cursor: pointer; font-size: 1rem; padding: 6px 12px; border-radius: 32px; transition: background 0.2s; }
+.user-area button:hover { background: rgba(0, 0, 0, 0.05); }
+body.dark .user-area button:hover { background: rgba(255, 255, 255, 0.1); }
 
-.user-area button {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 6px 12px;
-    border-radius: 32px;
-    transition: background 0.2s;
-}
+/* 弹窗通用 */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.modal-box { background: white; border-radius: 16px; padding: 24px; min-width: 320px; max-width: 480px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+body.dark .modal-box { background: #1e293b; }
+.modal-box h3 { margin-bottom: 16px; }
+.modal-box input, .modal-box select { width: 100%; padding: 8px 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ccc; }
+.modal-box button { margin-right: 8px; }
+.form-row { display: flex; align-items: center; gap: 8px; }
 
-.user-area button:hover {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-body.dark .user-area button:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
+/* 书库列表 */
+.book-list { list-style: none; padding: 0; }
+.book-list li { padding: 10px; border-bottom: 1px solid rgba(0,0,0,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.book-list li:hover { background: rgba(0,0,0,0.02); }
+.actions { display: flex; gap: 8px; }
+.actions button { font-size: 0.8rem; }
